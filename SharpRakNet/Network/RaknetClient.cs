@@ -10,6 +10,7 @@ namespace SharpRakNet.Network
 
         public delegate void PacketReceivedDelegate(IPEndPoint address, byte[] packet);
         public PacketReceivedDelegate PacketReceived = delegate { };
+        private AsyncCallback recv = null;
 
         public AsyncUdpClient()
         {
@@ -30,31 +31,45 @@ namespace SharpRakNet.Network
             }, Socket);
         }
 
-        public void RunLoop()
+        public void Run()
         {
-            while (true)
+            IPEndPoint source = new IPEndPoint(0, 0);
+            Socket.BeginReceive(recv = (ar) =>
             {
-                IPEndPoint source = new IPEndPoint(0, 0);
-                byte[] packet;
-                try
-                {
-                    packet = Socket.Receive(ref source);
-                }
-                catch (SocketException e)
-                {
-                    if (e.ErrorCode == 10054)
-                    {
-                        //Console.WriteLine("Received connection reset - Rcon server probably not running.");
-                        break;
-                    }
-                    else
-                    {
-                        throw e;
-                    }
-                }
+                Socket = (UdpClient)ar.AsyncState;
+                byte[] receivedData = Socket.EndReceive(ar, ref source);
+                Socket.BeginReceive(recv, Socket);
+                PacketReceived(source, receivedData);
+            }, Socket);
 
-                PacketReceived(source, packet);
-            }
+
+
+            //while (true)
+            //{
+            //    IPEndPoint source = new IPEndPoint(0, 0);
+            //    try
+            //    {
+            //        Socket.BeginReceive((ar) => 
+            //        {
+            //            Socket = (UdpClient)ar.AsyncState;
+            //            byte[] receivedData = Socket.EndReceive(ar, ref source);
+            //            PacketReceived(source, receivedData);
+            //        }, Socket);
+            //        //packet = Socket.Receive(ref source);
+            //    }
+            //    catch (SocketException e)
+            //    {
+            //        if (e.ErrorCode == 10054)
+            //        {
+            //            //Console.WriteLine("Received connection reset - Rcon server probably not running.");
+            //            break;
+            //        }
+            //        else
+            //        {
+            //            throw e;
+            //        }
+            //    }
+            //}
         }
     }
 
@@ -139,7 +154,7 @@ namespace SharpRakNet.Network
             };
             byte[] request1Buf = Packet.WritePacketConnectionOpenRequest1(request1Packet);
             Send(address, request1Buf);
-            Socket.RunLoop();
+            Socket.Run();
         }
     }
 }

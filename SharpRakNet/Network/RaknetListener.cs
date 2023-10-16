@@ -91,7 +91,8 @@ namespace SharpRakNet.Network
 
         public void BeginListener()
         {
-            Socket.RunLoop();
+            Socket.Run();
+            while (true) { }
         }
 
     }

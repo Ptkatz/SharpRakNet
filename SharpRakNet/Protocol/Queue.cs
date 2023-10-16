@@ -33,34 +33,37 @@ namespace SharpRakNet
 
         public void Insert(uint s)
         {
-            if (s != 0)
+            lock (this)
             {
-                if (s > last_max && s != last_max + 1)
+                if (s != 0)
                 {
-                    nack.Add(new AckRange(last_max + 1, s - 1));
+                    if (s > last_max && s != last_max + 1)
+                    {
+                        nack.Add(new AckRange(last_max + 1, s - 1));
+                    }
+
+                    if (s > last_max)
+                    {
+                        last_max = s;
+                    }
                 }
 
-                if (s > last_max)
+                for (int i = 0; i < ack.Count; i++)
                 {
-                    last_max = s;
+                    var a = ack[i];
+                    if (a.Start != 0 && s == a.Start - 1)
+                    {
+                        ack[i] = new AckRange(s, a.End);
+                        return;
+                    }
+                    if (s == a.End + 1)
+                    {
+                        ack[i] = new AckRange(a.Start, s);
+                        return;
+                    }
                 }
+                ack.Add(new AckRange(s, s));
             }
-
-            for (int i = 0; i < ack.Count; i++)
-            {
-                var a = ack[i];
-                if (a.Start != 0 && s == a.Start - 1)
-                {
-                    ack[i] = new AckRange(s, a.End);
-                    return;
-                }
-                if (s == a.End + 1)
-                {
-                    ack[i] = new AckRange(a.Start, s);
-                    return;
-                }
-            }
-            ack.Add(new AckRange(s, s));
         }
 
         public List<AckRange> GetAck()
@@ -99,63 +102,66 @@ namespace SharpRakNet
 
         public void Insert(FrameSetPacket frame)
         {
-            if (packets.ContainsKey(frame.sequence_number))
+            lock (packets)
             {
-                return;
-            }
+                if (packets.ContainsKey(frame.sequence_number))
+                {
+                    return;
+                }
 
-            sequence_number_ackset.Insert(frame.sequence_number);
+                sequence_number_ackset.Insert(frame.sequence_number);
 
-            switch (frame.GetReliability())
-            {
-                case Reliability.Unreliable:
-                    packets[frame.sequence_number] = frame;
-                    break;
-                case Reliability.UnreliableSequenced:
-                    uint sequenced_frame_index = frame.sequenced_frame_index;
-                    if (sequenced_frame_index >= this.sequenced_frame_index)
-                    {
-                        if (!packets.ContainsKey(frame.sequence_number))
+                switch (frame.GetReliability())
+                {
+                    case Reliability.Unreliable:
+                        packets[frame.sequence_number] = frame;
+                        break;
+                    case Reliability.UnreliableSequenced:
+                        uint sequenced_frame_index = frame.sequenced_frame_index;
+                        if (sequenced_frame_index >= this.sequenced_frame_index)
                         {
-                            packets[frame.sequence_number] = frame;
-                            sequenced_frame_index++;
+                            if (!packets.ContainsKey(frame.sequence_number))
+                            {
+                                packets[frame.sequence_number] = frame;
+                                sequenced_frame_index++;
+                            }
                         }
-                    }
-                    break;
-                case Reliability.Reliable:
-                    packets[frame.sequence_number] = frame;
-                    break;
-                case Reliability.ReliableOrdered:
-                    if (frame.ordered_frame_index < last_ordered_index)
-                    {
-                        return;
-                    }
-
-                    if (frame.IsFragment())
-                    {
-                        fragment_queue.Insert(frame);
-
-                        foreach (FrameSetPacket i in fragment_queue.Flush())
+                        break;
+                    case Reliability.Reliable:
+                        packets[frame.sequence_number] = frame;
+                        break;
+                    case Reliability.ReliableOrdered:
+                        if (frame.ordered_frame_index < last_ordered_index)
                         {
-                            ordered_packets[i.ordered_frame_index] = i;
+                            return;
                         }
-                    }
-                    else
-                    {
-                        ordered_packets[frame.ordered_frame_index] = frame;
-                    }
-                    break;
-                case Reliability.ReliableSequenced:
-                    sequenced_frame_index = frame.sequenced_frame_index;
-                    if (sequenced_frame_index >= this.sequenced_frame_index)
-                    {
-                        if (!packets.ContainsKey(frame.sequence_number))
+
+                        if (frame.IsFragment())
                         {
-                            packets[frame.sequence_number] = frame;
-                            sequenced_frame_index++;
+                            fragment_queue.Insert(frame);
+
+                            foreach (FrameSetPacket i in fragment_queue.Flush())
+                            {
+                                ordered_packets[i.ordered_frame_index] = i;
+                            }
                         }
-                    }
-                    break;
+                        else
+                        {
+                            ordered_packets[frame.ordered_frame_index] = frame;
+                        }
+                        break;
+                    case Reliability.ReliableSequenced:
+                        sequenced_frame_index = frame.sequenced_frame_index;
+                        if (sequenced_frame_index >= this.sequenced_frame_index)
+                        {
+                            if (!packets.ContainsKey(frame.sequence_number))
+                            {
+                                packets[frame.sequence_number] = frame;
+                                sequenced_frame_index++;
+                            }
+                        }
+                        break;
+                }
             }
         }
 
@@ -425,28 +431,27 @@ namespace SharpRakNet
             Tick(tick);
 
             List<FrameSetPacket> ret = new List<FrameSetPacket>();
-
-            if (sent_packet.Count > 0)
+            lock (packets)
             {
-                sent_packet.Sort((x, y) => x.Packet.sequence_number.CompareTo(y.Packet.sequence_number));
-
-                for (int i = 0; i < sent_packet.Count; i++)
+                if (sent_packet.Count > 0)
                 {
-                    var p = sent_packet[i];
-                    if (!p.Sent)
-                    {
-                        ret.Add(p.Packet);
-                        p.Sent = true;
-                        p.Timestamp = tick;
-                        p.NackCount++;
-                    }
-                }
-                return ret;
-            }
+                    sent_packet.Sort((x, y) => x.Packet.sequence_number.CompareTo(y.Packet.sequence_number));
 
-            if (packets.Count > 0)
-            {
-                lock (packets)
+                    for (int i = 0; i < sent_packet.Count; i++)
+                    {
+                        var p = sent_packet[i];
+                        if (!p.Sent)
+                        {
+                            ret.Add(p.Packet);
+                            p.Sent = true;
+                            p.Timestamp = tick;
+                            p.NackCount++;
+                        }
+                    }
+                    return ret;
+                }
+
+                if (packets.Count > 0)
                 {
                     foreach (FrameSetPacket packet in packets)
                     {
@@ -461,7 +466,6 @@ namespace SharpRakNet
                     packets.Clear();
                 }
             }
-
 
             return ret;
         }

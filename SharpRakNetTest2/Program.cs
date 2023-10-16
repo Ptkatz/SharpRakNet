@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -23,9 +24,10 @@ namespace SharpRakNetTest2
         static void OnSessionEstablished(RaknetSession session)
         {
             Console.WriteLine("OnSessionEstablished");
+            byte[] fileBytes = File.ReadAllBytes("C:\\Users\\Administrator\\Desktop\\go-donut\\go-donut.exe");
             session.SessionDisconnected += OnDisconnected;
             session.SessionReceive += OnReceive;
-            session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3, 4, 5, 6, 7 });
+            session.Sendq.Insert(Reliability.ReliableOrdered, fileBytes);
         }
 
         static void OnDisconnected(RaknetSession session)

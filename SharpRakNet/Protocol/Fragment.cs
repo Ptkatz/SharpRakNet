@@ -85,16 +85,19 @@ namespace SharpRakNet
 
         public void Insert(FrameSetPacket frame)
         {
-            if (fragments.ContainsKey(frame.compound_id))
+            lock (fragments)
             {
-                fragments[frame.compound_id].Insert(frame);
-            }
-            else
-            {
-                Fragment v = new Fragment(frame.flags, frame.compound_size, frame.ordered_frame_index);
-                ushort k = frame.compound_id;
-                v.Insert(frame);
-                fragments[k] = v;
+                if (fragments.ContainsKey(frame.compound_id))
+                {
+                    fragments[frame.compound_id].Insert(frame);
+                }
+                else
+                {
+                    Fragment v = new Fragment(frame.flags, frame.compound_size, frame.ordered_frame_index);
+                    ushort k = frame.compound_id;
+                    v.Insert(frame);
+                    fragments[k] = v;
+                }
             }
         }
 
@@ -104,16 +107,18 @@ namespace SharpRakNet
 
             List<ushort> keys = fragments.Keys.ToList();
 
-            foreach (ushort i in keys)
+            lock (fragments)
             {
-                Fragment a = fragments[i];
-                if (a.Full())
+                foreach (ushort i in keys)
                 {
-                    ret.Add(a.Merge());
-                    fragments.Remove(i);
+                    Fragment a = fragments[i];
+                    if (a.Full())
+                    {
+                        ret.Add(a.Merge());
+                        fragments.Remove(i);
+                    }
                 }
             }
-
             return ret;
         }
 

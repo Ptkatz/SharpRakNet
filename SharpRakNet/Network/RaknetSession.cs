@@ -15,7 +15,7 @@ namespace SharpRakNet.Network
         private ulong guid;
         public bool Connected;
         private int repingCount;
-        public int MaxRepingCount = 5;
+        public int MaxRepingCount = 6;
 
         public byte rak_version;
         public RecvQ Recvq;
@@ -199,30 +199,21 @@ namespace SharpRakNet.Network
             Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
-        public void SendFrame(byte[] buf, Reliability reliability)
-        {
-            Sendq.Insert(reliability, buf);
-            foreach (FrameSetPacket item in Sendq.Flush(Common.CurTimestampMillis(), PeerEndPoint))
-            {
-                byte[] sdata = item.Serialize();
-                Socket.Send(PeerEndPoint, sdata);
-            }
-        }
-
         public void StartSender()
         {
-            new Thread(() => 
+            Thread thread =  new Thread(() => 
             {
                 while (true)
                 {
+                    Thread.Sleep(100);
                     foreach (FrameSetPacket item in Sendq.Flush(Common.CurTimestampMillis(), PeerEndPoint))
                     {
                         byte[] sdata = item.Serialize();
                         Socket.Send(PeerEndPoint, sdata);
                     }
-                    Thread.Sleep(50);
                 }
-            }).Start();
+            });
+            thread.Start();
         }
 
         public void StartPing()
