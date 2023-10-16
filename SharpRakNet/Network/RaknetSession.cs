@@ -8,13 +8,6 @@ using System.Threading;
 
 namespace SharpRakNet.Network
 {
-    public class SplitPacket
-    {
-        public UInt16 Index;
-        public UInt32 Available;
-        public byte[][] Buffers;
-    }
-
     public class RaknetSession
     {
         public IPEndPoint PeerEndPoint { get; private set; }
