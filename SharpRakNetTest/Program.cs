@@ -23,7 +23,7 @@ namespace SharpRakNetTest
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
             session.SessionReceive += OnReceive;
-            session.SendFrame(new byte[] { 1, 2, 3 }, Reliability.ReliableOrdered);
+            session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3 });
         }
 
         static void OnDisconnected(RaknetSession session)

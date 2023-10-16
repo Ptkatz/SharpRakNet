@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SharpRakNet.Network
 {
@@ -27,7 +23,11 @@ namespace SharpRakNet.Network
 
         public void Send(IPEndPoint address, byte[] packet)
         {
-            Socket.Send(packet, packet.Length, address);
+            Socket.BeginSend(packet, packet.Length, address, (ar) =>
+            {
+                UdpClient client = (UdpClient)ar.AsyncState;
+                client.EndSend(ar);
+            }, Socket);
         }
 
         public void RunLoop()
@@ -119,12 +119,7 @@ namespace SharpRakNet.Network
         {
             OpenConnectionReply2 reply2Packet = Packet.ReadPacketConnectionOpenReply2(data);
 
-            Session = new RaknetSession(Socket, peer_addr, guid)
-            {
-                rak_version = rak_version,
-                Recvq = new RecvQ(),
-                Sendq = new SendQ(reply2Packet.mtu),
-            };
+            Session = new RaknetSession(Socket, peer_addr, guid, rak_version, new RecvQ(), new SendQ(reply2Packet.mtu));
             Session.HandleConnect();
             SessionEstablished(Session);
         }

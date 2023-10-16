@@ -1,11 +1,6 @@
-﻿using Microsoft.Win32;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SharpRakNet.Network
 {
@@ -88,12 +83,7 @@ namespace SharpRakNet.Network
                 encryption_enabled = 0x00,
             };
             byte[] reply2Buf = Packet.WritePacketConnectionOpenReply2(reply2Packet);
-            var session = new RaknetSession(Socket, peer_addr, guid)
-            {
-                rak_version = rak_version,
-                Recvq = new RecvQ(),
-                Sendq = new SendQ(req.mtu),
-            };
+            var session = new RaknetSession(Socket, peer_addr, guid, rak_version, new RecvQ(), new SendQ(req.mtu));
             Sessions.Add(peer_addr, session);
             Socket.Send(peer_addr, reply2Buf);
             SessionConnected(session);

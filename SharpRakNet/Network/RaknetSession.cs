@@ -30,14 +30,18 @@ namespace SharpRakNet.Network
         public delegate void PacketReceiveBytesDelegate(byte[] bytes);
         public PacketReceiveBytesDelegate SessionReceive = delegate { };
 
-        public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid)
+        public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid, byte rak_version, RecvQ recvQ, SendQ sendQ)
         {
             this.Socket = Socket;
             this.PeerEndPoint = Address;
             this.guid = guid;
             this.Connected = true;
+            this.rak_version = rak_version;
+            this.Sendq = sendQ;
+            this.Recvq = recvQ;
 
             StartPing();
+            StartSender();
         }
 
         public void HandleFrameSet(IPEndPoint peer_addr, byte[] data)
@@ -147,7 +151,7 @@ namespace SharpRakNet.Network
                 server_timestamp = Common.CurTimestampMillis(),
             };
             byte[] buf = Packet.WritePacketConnectedPong(pongPacket);
-            SendFrame(buf, Reliability.Unreliable);
+            Sendq.Insert(Reliability.Unreliable, buf);
         }
 
         private void HandleConnectionRequestAccepted(byte[] data)
@@ -160,7 +164,7 @@ namespace SharpRakNet.Network
                 accepted_timestamp = Common.CurTimestampMillis(),
             };
             byte[] buf = Packet.WritePacketNewIncomingConnection(packet_reply);
-            SendFrame(buf, Reliability.ReliableOrdered);
+            Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
         private void HandleConnectionRequest(IPEndPoint peer_addr, byte[] data)
@@ -174,7 +178,7 @@ namespace SharpRakNet.Network
                 accepted_timestamp = Common.CurTimestampMillis(),
             };
             byte[] buf = Packet.WritePacketConnectionRequestAccepted(packet_reply);
-            SendFrame(buf, Reliability.ReliableOrdered);
+            Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
         private void HandleDisconnectionNotification()
@@ -192,7 +196,7 @@ namespace SharpRakNet.Network
                 use_encryption = 0x00,
             };
             byte[] buf = Packet.WritePacketConnectionRequest(requestPacket);
-            SendFrame(buf, Reliability.ReliableOrdered);
+            Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
         public void SendFrame(byte[] buf, Reliability reliability)
@@ -205,10 +209,26 @@ namespace SharpRakNet.Network
             }
         }
 
+        public void StartSender()
+        {
+            new Thread(() => 
+            {
+                while (true)
+                {
+                    foreach (FrameSetPacket item in Sendq.Flush(Common.CurTimestampMillis(), PeerEndPoint))
+                    {
+                        byte[] sdata = item.Serialize();
+                        Socket.Send(PeerEndPoint, sdata);
+                    }
+                    Thread.Sleep(50);
+                }
+            }).Start();
+        }
+
         public void StartPing()
         {
             var timer = new Timer(SendPing, null,
-                        new Random().Next(1000, 1500), new Random().Next(1000, 1500));
+                        new Random().Next(10 * 1000, 10 * 1500), new Random().Next(10 * 1000, 10 * 1500));
         }
 
         public void SendPing(object obj)
@@ -220,7 +240,7 @@ namespace SharpRakNet.Network
                     client_timestamp = Common.CurTimestampMillis(),
                 };
                 byte[] buf = Packet.WritePacketConnectedPing(pingPacket);
-                SendFrame(buf, Reliability.Unreliable);
+                Sendq.Insert(Reliability.Unreliable, buf);
                 repingCount++;
                 if (repingCount > MaxRepingCount)
                 {
