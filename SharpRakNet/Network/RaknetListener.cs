@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -22,7 +23,19 @@ namespace SharpRakNet.Network
         {
             Socket = new AsyncUdpClient(address);
             Socket.PacketReceived += this.OnPacketReceived;
+            SessionConnected += OnSessionEstablished;
             guid = (ulong)new Random().NextDouble() * ulong.MaxValue;
+        }
+
+        private void OnSessionEstablished(RaknetSession session)
+        {
+            session.SessionDisconnected += RemoveSession;
+        }
+
+        void RemoveSession(RaknetSession session)
+        {
+            IPEndPoint peerAddr = session.PeerEndPoint;
+            Sessions.Remove(peerAddr);
         }
 
         private void OnPacketReceived(IPEndPoint peer_addr, byte[] data)
