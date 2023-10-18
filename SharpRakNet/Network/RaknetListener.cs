@@ -1,6 +1,7 @@
 ﻿using SharpRakNet.Protocol;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 
 namespace SharpRakNet.Network
@@ -93,7 +94,16 @@ namespace SharpRakNet.Network
         public void BeginListener()
         {
             Socket.Run();
-            while (true) { }
+        }
+
+        public void StopListener()
+        {
+            for (int i = Sessions.Count - 1; i >= 0; i--)
+            {
+                var session = Sessions.Values.ElementAt(i);
+                session.SessionDisconnected(session);
+            }
+            Socket.Stop();
         }
 
     }

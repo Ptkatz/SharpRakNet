@@ -6,46 +6,6 @@ using System.Threading;
 
 namespace SharpRakNet.Network
 {
-    public class AsyncUdpClient
-    {
-        public UdpClient Socket;
-
-        public delegate void PacketReceivedDelegate(IPEndPoint address, byte[] packet);
-        public PacketReceivedDelegate PacketReceived = delegate { };
-        private AsyncCallback recv = null;
-
-        public AsyncUdpClient()
-        {
-            Socket = Common.CreateListener(new IPEndPoint(IPAddress.Any, 0));
-        }
-
-        public AsyncUdpClient(IPEndPoint address)
-        {
-            Socket = Common.CreateListener(address);
-        }
-
-        public void Send(IPEndPoint address, byte[] packet)
-        {
-            Socket.BeginSend(packet, packet.Length, address, (ar) =>
-            {
-                UdpClient client = (UdpClient)ar.AsyncState;
-                client.EndSend(ar);
-            }, Socket);
-        }
-
-        public void Run()
-        {
-            IPEndPoint source = new IPEndPoint(0, 0);
-            Socket.BeginReceive(recv = (ar) =>
-            {
-                Socket = (UdpClient)ar.AsyncState;
-                byte[] receivedData = Socket.EndReceive(ar, ref source);
-                Socket.BeginReceive(recv, Socket);
-                PacketReceived(source, receivedData);
-            }, Socket);
-        }
-    }
-
     public class RaknetClient
     {
         public AsyncUdpClient Socket;

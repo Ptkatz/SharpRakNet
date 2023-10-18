@@ -42,6 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Network\AsyncUdpClient.cs" />
     <Compile Include="Network\RaknetListener.cs" />
     <Compile Include="Network\RaknetClient.cs" />
     <Compile Include="Network\RaknetSession.cs" />
