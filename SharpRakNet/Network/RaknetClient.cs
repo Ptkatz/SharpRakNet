@@ -8,9 +8,9 @@ namespace SharpRakNet.Network
 {
     public class RaknetClient
     {
-        public AsyncUdpClient Socket;
+        public AsyncUdpClient Socket { get; private set; }
+        public RaknetSession Session { get; private set; }
         private ulong guid;
-        private RaknetSession Session;
         private byte rak_version = 0xB;
 
         public delegate void SessionEstablishedDelegate(RaknetSession session);
