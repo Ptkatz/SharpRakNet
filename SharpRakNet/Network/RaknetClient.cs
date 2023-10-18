@@ -41,35 +41,6 @@ namespace SharpRakNet.Network
                 Socket.BeginReceive(recv, Socket);
                 PacketReceived(source, receivedData);
             }, Socket);
-
-
-
-            //while (true)
-            //{
-            //    IPEndPoint source = new IPEndPoint(0, 0);
-            //    try
-            //    {
-            //        Socket.BeginReceive((ar) => 
-            //        {
-            //            Socket = (UdpClient)ar.AsyncState;
-            //            byte[] receivedData = Socket.EndReceive(ar, ref source);
-            //            PacketReceived(source, receivedData);
-            //        }, Socket);
-            //        //packet = Socket.Receive(ref source);
-            //    }
-            //    catch (SocketException e)
-            //    {
-            //        if (e.ErrorCode == 10054)
-            //        {
-            //            //Console.WriteLine("Received connection reset - Rcon server probably not running.");
-            //            break;
-            //        }
-            //        else
-            //        {
-            //            throw e;
-            //        }
-            //    }
-            //}
         }
     }
 
@@ -110,7 +81,7 @@ namespace SharpRakNet.Network
                     }
                 default:
                     {
-                        Session.HandleFrameSet(peer_addr, data);
+                        Session?.HandleFrameSet(peer_addr, data);
                         break;
                     }
             }

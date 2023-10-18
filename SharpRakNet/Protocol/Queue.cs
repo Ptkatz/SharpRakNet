@@ -387,14 +387,17 @@ namespace SharpRakNet
             ack_sequence_number = sequence;
             List<long> rtts = new List<long>();
 
-            for (int i = 0; i < sent_packet.Count; i++)
+            lock (sent_packet)
             {
-                var item = sent_packet[i];
-                if (item.Packet.sequence_number == sequence || item.NackedSequenceNumbers.Contains(sequence))
+                for (int i = 0; i < sent_packet.Count; i++)
                 {
-                    rtts.Add(tick - item.Timestamp);
-                    sent_packet.RemoveAt(i);
-                    break;
+                    var item = sent_packet[i];
+                    if (item.Packet.sequence_number == sequence || item.NackedSequenceNumbers.Contains(sequence))
+                    {
+                        rtts.Add(tick - item.Timestamp);
+                        sent_packet.RemoveAt(i);
+                        break;
+                    }
                 }
             }
 

@@ -13,7 +13,7 @@ namespace SharpRakNetTest
     {
         static void Main(string[] args)
         {
-            RaknetListener listener = new RaknetListener(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 19132));
+            RaknetListener listener = new RaknetListener(new IPEndPoint(IPAddress.Parse("0.0.0.0"), 19132));
             listener.SessionConnected += OnSessionEstablished;
             listener.BeginListener();
         }
@@ -33,7 +33,8 @@ namespace SharpRakNetTest
 
         static void OnReceive(byte[] buf)
         {
-            PrintBytes(buf);
+            Console.WriteLine("Length", buf.Length);
+            //PrintBytes(buf);
         }
 
         public static void PrintBytes(byte[] byteArray)

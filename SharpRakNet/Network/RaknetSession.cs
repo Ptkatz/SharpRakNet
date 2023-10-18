@@ -16,6 +16,7 @@ namespace SharpRakNet.Network
         public bool Connected;
         private int repingCount;
         public int MaxRepingCount = 6;
+        public Timer PingTimer;
 
         public byte rak_version;
         public RecvQ Recvq;
@@ -40,18 +41,26 @@ namespace SharpRakNet.Network
             this.Sendq = sendQ;
             this.Recvq = recvQ;
 
-            StartPing();
+            //StartPing();
             StartSender();
         }
 
         public void HandleFrameSet(IPEndPoint peer_addr, byte[] data)
         {
+            if (!Connected)
+            {
+                foreach (FrameSetPacket f in Recvq.Flush(peer_addr))
+                {
+                    HandleFrame(peer_addr, f);
+                }
+            }
             var reader = new RaknetReader(data);
             byte headerFlags = reader.ReadU8();
             switch (PacketIDExtensions.FromU8(headerFlags))
             {
                 case PacketID.Nack:
                     {
+                        //Console.WriteLine("Nack");
                         Nack nack = Packet.ReadPacketNack(data);
                         for (int i = 0; i < nack.record_count; i++)
                         {
@@ -71,6 +80,7 @@ namespace SharpRakNet.Network
                     }
                 case PacketID.Ack:
                     {
+                        //Console.WriteLine("Ack");
                         Ack ack = Packet.ReadPacketAck(data);
                         for (int i = 0; i < ack.record_count; i++)
                         {
@@ -93,7 +103,22 @@ namespace SharpRakNet.Network
                         if (PacketIDExtensions.FromU8(data[0]) >= PacketID.FrameSetPacketBegin 
                             && PacketIDExtensions.FromU8(data[0]) <= PacketID.FrameSetPacketEnd)
                         {
-                            HandleFrame(peer_addr, data);
+                            var frames = new FrameVec(data);
+                            lock (Recvq)
+                            {
+                                foreach (var frame in frames.frames)
+                                {
+                                    Recvq.Insert(frame);
+                                    foreach (FrameSetPacket f in Recvq.Flush(peer_addr))
+                                    {
+                                        HandleFrame(peer_addr, f);
+                                    }
+                                }
+
+                            }
+
+
+
                             var acks = Recvq.GetAck();
                             if (acks.Count != 0)
                             {
@@ -111,36 +136,43 @@ namespace SharpRakNet.Network
             }
         }
 
-        public void HandleFrame(IPEndPoint peer_addr, byte[] data)
+
+        public void HandleFrame(IPEndPoint peer_addr, FrameSetPacket frame)
         {
-            FrameSetPacket frame = FrameSetPacket.Deserialize(data);
-            Recvq.Insert(frame);
             PacketID packetID = PacketIDExtensions.FromU8(frame.data[0]);
 
             switch (packetID)
             {
                 case PacketID.ConnectedPing:
+                    //Console.WriteLine("ConnectedPing");
                     HandleConnectPing(frame.data.ToArray());
                     break;
                 case PacketID.ConnectedPong:
+                    //Console.WriteLine("ConnectedPong");
                     repingCount = 0;
                     break;
                 case PacketID.ConnectionRequest:
-                    HandleConnectionRequest(peer_addr, data);
+                    //Console.WriteLine("ConnectionRequest");
+                    HandleConnectionRequest(peer_addr, frame.data.ToArray());
                     break;
                 case PacketID.ConnectionRequestAccepted:
+                    //Console.WriteLine("ConnectionRequestAccepted");
                     HandleConnectionRequestAccepted(frame.data.ToArray());
                     break;
                 case PacketID.NewIncomingConnection:
+                    //Console.WriteLine("NewIncomingConnection");
                     break;
                 case PacketID.Disconnect:
+                    //Console.WriteLine("Disconnect");
                     HandleDisconnectionNotification();
                     break;
                 default:
+                    //Console.WriteLine("default");
                     SessionReceive(frame.data.ToArray());
                     break;
             }
         }
+
 
         private void HandleConnectPing(byte[] data)
         {
@@ -183,8 +215,9 @@ namespace SharpRakNet.Network
 
         private void HandleDisconnectionNotification()
         {
-            SessionDisconnected(this);
             Connected = false;
+            PingTimer.Dispose();
+            SessionDisconnected(this);
         }
 
         public void HandleConnect()
@@ -205,7 +238,7 @@ namespace SharpRakNet.Network
             {
                 while (true)
                 {
-                    Thread.Sleep(100);
+                    Thread.Sleep(1);
                     foreach (FrameSetPacket item in Sendq.Flush(Common.CurTimestampMillis(), PeerEndPoint))
                     {
                         byte[] sdata = item.Serialize();
@@ -218,8 +251,8 @@ namespace SharpRakNet.Network
 
         public void StartPing()
         {
-            var timer = new Timer(SendPing, null,
-                        new Random().Next(10 * 1000, 10 * 1500), new Random().Next(10 * 1000, 10 * 1500));
+            PingTimer = new Timer(SendPing, null,
+                        new Random().Next(1000, 1500), new Random().Next(1000, 1500));
         }
 
         public void SendPing(object obj)
