@@ -17,6 +17,7 @@ namespace SharpRakNetTest
             RaknetListener listener = new RaknetListener(new IPEndPoint(IPAddress.Parse("0.0.0.0"), 19132));
             listener.SessionConnected += OnSessionEstablished;
             listener.BeginListener();
+            while (true) { }
         }
 
         static void OnSessionEstablished(RaknetSession session)

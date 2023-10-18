@@ -244,7 +244,7 @@ namespace SharpRakNet.Network
 
         public void StartSender()
         {
-            Thread.Sleep(1000);
+            Thread.Sleep(0);
             Thread thread =  new Thread(() => 
             {
                 while (true)
