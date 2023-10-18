@@ -77,15 +77,21 @@ public class ACKSet
 
     public List<AckRange> GetAck()
     {
-        var ret = new List<AckRange>(ack);
-        ack.Clear();
-        return ret;
+        lock (ackLock)
+        {
+            var ret = new List<AckRange>(ack);
+            ack.Clear();
+            return ret;
+        }
     }
 
     public List<AckRange> GetNack()
     {
-        var ret = new List<AckRange>(nack);
-        nack.Clear();
-        return ret;
+        lock (nackLock)
+        {
+            var ret = new List<AckRange>(nack);
+            nack.Clear();
+            return ret;
+        }
     }
 }

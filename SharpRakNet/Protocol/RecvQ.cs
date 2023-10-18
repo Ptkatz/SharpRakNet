@@ -16,6 +16,11 @@ namespace SharpRakNet.Protocol
         private Dictionary<uint, FrameSetPacket> ordered_packets;
         private FragmentQ fragment_queue;
 
+        private readonly object packetsLock = new object();
+        private readonly object orderedPacketsLock = new object();
+        private readonly object sequenceAcksetLock = new object();
+        private readonly object fragmentQueueLock = new object();
+
         public RecvQ()
         {
             sequence_number_ackset = new ACKSet();
@@ -28,17 +33,24 @@ namespace SharpRakNet.Protocol
 
         public void Insert(FrameSetPacket frame)
         {
-            if (packets.ContainsKey(frame.sequence_number))
+            lock (packetsLock)
             {
-                return;
+                if (packets.ContainsKey(frame.sequence_number))
+                {
+                    return;
+                }
             }
-            sequence_number_ackset.Insert(frame.sequence_number);
+            lock (sequenceAcksetLock)
+            {
+                sequence_number_ackset.Insert(frame.sequence_number);
+            }
 
 
             switch (frame.GetReliability())
             {
                 case Reliability.Unreliable:
-                    packets[frame.sequence_number] = frame;
+                    lock (packetsLock)
+                        packets[frame.sequence_number] = frame;
                     break;
                 case Reliability.UnreliableSequenced:
                     uint sequenced_frame_index = frame.sequenced_frame_index;
@@ -46,13 +58,15 @@ namespace SharpRakNet.Protocol
                     {
                         if (!packets.ContainsKey(frame.sequence_number))
                         {
-                            packets[frame.sequence_number] = frame;
+                            lock (packetsLock)
+                                packets[frame.sequence_number] = frame;
                             this.sequenced_frame_index++;
                         }
                     }
                     break;
                 case Reliability.Reliable:
-                    packets[frame.sequence_number] = frame;
+                    lock (packetsLock)
+                        packets[frame.sequence_number] = frame;
                     break;
                 case Reliability.ReliableOrdered:
                     if (frame.ordered_frame_index < last_ordered_index)
@@ -62,16 +76,19 @@ namespace SharpRakNet.Protocol
 
                     if (frame.IsFragment())
                     {
-                        fragment_queue.Insert(frame);
+                        lock (fragmentQueueLock)
+                            fragment_queue.Insert(frame);
 
                         foreach (FrameSetPacket i in fragment_queue.Flush())
                         {
-                            ordered_packets[i.ordered_frame_index] = i;
+                            lock (orderedPacketsLock)
+                                ordered_packets[i.ordered_frame_index] = i;
                         }
                     }
                     else
                     {
-                        ordered_packets[frame.ordered_frame_index] = frame;
+                        lock (orderedPacketsLock)
+                            ordered_packets[frame.ordered_frame_index] = frame;
                     }
                     break;
                 case Reliability.ReliableSequenced:
@@ -80,7 +97,8 @@ namespace SharpRakNet.Protocol
                     {
                         if (!packets.ContainsKey(frame.sequence_number))
                         {
-                            packets[frame.sequence_number] = frame;
+                            lock (packetsLock)
+                                packets[frame.sequence_number] = frame;
                             this.sequenced_frame_index = sequenced_frame_index + 1;
                         }
                     }
@@ -90,62 +108,74 @@ namespace SharpRakNet.Protocol
 
         public List<AckRange> GetAck()
         {
-            return sequence_number_ackset.GetAck();
+            lock (sequenceAcksetLock)
+                return sequence_number_ackset.GetAck();
         }
 
         public List<AckRange> GetNack()
         {
-            return sequence_number_ackset.GetNack();
+            lock (sequenceAcksetLock)
+                return sequence_number_ackset.GetNack();
         }
 
         public List<FrameSetPacket> Flush(IPEndPoint peerAddr)
         {
             List<FrameSetPacket> ret = new List<FrameSetPacket>();
-            List<uint> orderedKeys = ordered_packets.Keys.ToList();
-            orderedKeys.Sort();
-
-            foreach (uint i in orderedKeys)
+            lock (orderedPacketsLock)
             {
-                if (i == last_ordered_index)
+                List<uint> orderedKeys = ordered_packets.Keys.ToList();
+                orderedKeys.Sort();
+                foreach (uint i in orderedKeys)
                 {
-                    FrameSetPacket frame = ordered_packets[i];
-                    ret.Add(frame);
-                    ordered_packets.Remove(i);
-                    last_ordered_index = i + 1;
+                    if (i == last_ordered_index)
+                    {
+                        FrameSetPacket frame = ordered_packets[i];
+                        ret.Add(frame);
+                        ordered_packets.Remove(i);
+                        last_ordered_index = i + 1;
+                    }
                 }
             }
 
-            List<uint> packetsKeys = packets.Keys.ToList();
-            packetsKeys.Sort();
-
-            foreach (uint i in packetsKeys)
+            lock (packetsLock)
             {
-                FrameSetPacket v = packets[i];
-                ret.Add(v);
+                List<uint> packetsKeys = packets.Keys.ToList();
+                packetsKeys.Sort();
+
+                foreach (uint i in packetsKeys)
+                {
+                    FrameSetPacket v = packets[i];
+                    ret.Add(v);
+                }
+
+                packets.Clear();
             }
 
-            packets.Clear();
             return ret;
         }
 
         public int GetOrderedPacketCount()
         {
-            return ordered_packets.Count;
+            lock (orderedPacketsLock)
+                return ordered_packets.Count;
         }
 
         public int GetFragmentQueueSize()
         {
-            return fragment_queue.Size();
+            lock (fragmentQueueLock)
+                return fragment_queue.Size();
         }
 
         public List<uint> GetOrderedKeys()
         {
-            return ordered_packets.Keys.ToList();
+            lock (orderedPacketsLock)
+                return ordered_packets.Keys.ToList();
         }
 
         public int GetSize()
         {
-            return packets.Count;
+            lock (packetsLock)
+                return packets.Count;
         }
     }
 

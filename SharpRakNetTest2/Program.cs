@@ -15,8 +15,14 @@ namespace SharpRakNetTest2
         static string Path;
         static void Main(string[] args)
         {
-            //Path = args[0];
-            Path = @"C:\Users\Administrator\Desktop\Client.exe";
+            if (args.Length < 1)
+            {
+                Path = @"C:\Users\Administrator\Desktop\Client.exe";
+            }
+            else
+            {
+                Path = args[0];
+            }
             RaknetClient socket = new RaknetClient();
             socket.SessionEstablished += OnSessionEstablished;
 
