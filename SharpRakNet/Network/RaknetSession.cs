@@ -61,41 +61,49 @@ namespace SharpRakNet.Network
                 case PacketID.Nack:
                     {
                         //Console.WriteLine("Nack");
-                        Nack nack = Packet.ReadPacketNack(data);
-                        for (int i = 0; i < nack.record_count; i++)
+                        lock (Sendq)
                         {
-                            if (nack.sequences[i].Start == nack.sequences[i].End)
+                            Nack nack = Packet.ReadPacketNack(data);
+                            for (int i = 0; i < nack.record_count; i++)
                             {
-                                Sendq.Nack(nack.sequences[i].Start, Common.CurTimestampMillis());
-                            }
-                            else
-                            {
-                                for (uint j = nack.sequences[i].Start; j <= nack.sequences[i].End; j++)
+                                if (nack.sequences[i].Start == nack.sequences[i].End)
                                 {
-                                    Sendq.Nack(j, Common.CurTimestampMillis());
+                                    Sendq.Nack(nack.sequences[i].Start, Common.CurTimestampMillis());
+                                }
+                                else
+                                {
+                                    for (uint j = nack.sequences[i].Start; j <= nack.sequences[i].End; j++)
+                                    {
+                                        Sendq.Nack(j, Common.CurTimestampMillis());
+                                    }
                                 }
                             }
                         }
+
                         break;
                     }
                 case PacketID.Ack:
                     {
                         //Console.WriteLine("Ack");
-                        Ack ack = Packet.ReadPacketAck(data);
-                        for (int i = 0; i < ack.record_count; i++)
+                        lock (Sendq)
                         {
-                            if (ack.sequences[i].Start == ack.sequences[i].End)
+                            Ack ack = Packet.ReadPacketAck(data);
+                            for (int i = 0; i < ack.record_count; i++)
                             {
-                                Sendq.Ack(ack.sequences[i].Start, Common.CurTimestampMillis());
-                            }
-                            else
-                            {
-                                for (uint j = ack.sequences[i].Start; j <= ack.sequences[i].End; j++)
+                                if (ack.sequences[i].Start == ack.sequences[i].End)
                                 {
-                                    Sendq.Ack(j, Common.CurTimestampMillis());
+                                    Sendq.Ack(ack.sequences[i].Start, Common.CurTimestampMillis());
+                                }
+                                else
+                                {
+                                    for (uint j = ack.sequences[i].Start; j <= ack.sequences[i].End; j++)
+                                    {
+                                        Sendq.Ack(j, Common.CurTimestampMillis());
+                                    }
                                 }
                             }
                         }
+
                         break;
                     }
                 default:
@@ -183,7 +191,8 @@ namespace SharpRakNet.Network
                 server_timestamp = Common.CurTimestampMillis(),
             };
             byte[] buf = Packet.WritePacketConnectedPong(pongPacket);
-            Sendq.Insert(Reliability.Unreliable, buf);
+            lock (Sendq)
+                Sendq.Insert(Reliability.Unreliable, buf);
         }
 
         private void HandleConnectionRequestAccepted(byte[] data)
@@ -196,7 +205,8 @@ namespace SharpRakNet.Network
                 accepted_timestamp = Common.CurTimestampMillis(),
             };
             byte[] buf = Packet.WritePacketNewIncomingConnection(packet_reply);
-            Sendq.Insert(Reliability.ReliableOrdered, buf);
+            lock (Sendq)
+                Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
         private void HandleConnectionRequest(IPEndPoint peer_addr, byte[] data)
@@ -210,7 +220,8 @@ namespace SharpRakNet.Network
                 accepted_timestamp = Common.CurTimestampMillis(),
             };
             byte[] buf = Packet.WritePacketConnectionRequestAccepted(packet_reply);
-            Sendq.Insert(Reliability.ReliableOrdered, buf);
+            lock (Sendq)
+                Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
         private void HandleDisconnectionNotification()
@@ -229,7 +240,8 @@ namespace SharpRakNet.Network
                 use_encryption = 0x00,
             };
             byte[] buf = Packet.WritePacketConnectionRequest(requestPacket);
-            Sendq.Insert(Reliability.ReliableOrdered, buf);
+            lock (Sendq)
+                Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
         public void StartSender()
@@ -264,7 +276,8 @@ namespace SharpRakNet.Network
                     client_timestamp = Common.CurTimestampMillis(),
                 };
                 byte[] buf = Packet.WritePacketConnectedPing(pingPacket);
-                Sendq.Insert(Reliability.Unreliable, buf);
+                lock (Sendq)
+                    Sendq.Insert(Reliability.Unreliable, buf);
                 repingCount++;
                 if (repingCount > MaxRepingCount)
                 {

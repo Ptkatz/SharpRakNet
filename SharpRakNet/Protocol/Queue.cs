@@ -108,8 +108,10 @@ namespace SharpRakNet
                 {
                     return;
                 }
-
-                sequence_number_ackset.Insert(frame.sequence_number);
+                lock (sequence_number_ackset)
+                {
+                    sequence_number_ackset.Insert(frame.sequence_number);
+                }
 
                 switch (frame.GetReliability())
                 {

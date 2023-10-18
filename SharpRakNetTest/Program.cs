@@ -33,7 +33,7 @@ namespace SharpRakNetTest
 
         static void OnReceive(byte[] buf)
         {
-            Console.WriteLine("Length", buf.Length);
+            Console.WriteLine($"Length {buf.Length}");
             //PrintBytes(buf);
         }
 
