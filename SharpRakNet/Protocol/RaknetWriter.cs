@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Net;
 using System.Text;
+using SharpRakNet.Protocol;
 
 namespace SharpRakNet
 {
@@ -175,13 +176,17 @@ namespace SharpRakNet
 
             foreach (var sequence in sequences)
             {
-                byte singleSequenceNumber = (byte)(sequence.Start == sequence.End ? 0x01 : 0x00);
-                WriteU8(singleSequenceNumber);
-                WriteU24(sequence.Start, Endian.Little);
-
-                if (singleSequenceNumber == 0x00)
+                // Check if Start and End properties are not null before accessing them
+                if (sequence != null)
                 {
-                    WriteU24(sequence.End, Endian.Little);
+                    byte singleSequenceNumber = (byte)(sequence.Start == sequence.End ? 0x01 : 0x00);
+                    WriteU8(singleSequenceNumber);
+                    WriteU24(sequence.Start, Endian.Little);
+
+                    if (singleSequenceNumber == 0x00)
+                    {
+                        WriteU24(sequence.End, Endian.Little);
+                    }
                 }
             }
         }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SharpRakNet.Protocol;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -124,9 +125,6 @@ namespace SharpRakNet.Network
                                 }
 
                             }
-
-
-
                             var acks = Recvq.GetAck();
                             if (acks.Count != 0)
                             {
@@ -246,11 +244,11 @@ namespace SharpRakNet.Network
 
         public void StartSender()
         {
+            Thread.Sleep(1000);
             Thread thread =  new Thread(() => 
             {
                 while (true)
                 {
-                    Thread.Sleep(1);
                     foreach (FrameSetPacket item in Sendq.Flush(Common.CurTimestampMillis(), PeerEndPoint))
                     {
                         byte[] sdata = item.Serialize();

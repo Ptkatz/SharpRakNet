@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Net;
+using SharpRakNet.Protocol;
+using System.Threading;
 
 namespace SharpRakNet.Network
 {
@@ -81,7 +83,13 @@ namespace SharpRakNet.Network
                     }
                 default:
                     {
-                        Session?.HandleFrameSet(peer_addr, data);
+                        if (Session != null)
+                        {
+                            lock (Session)
+                            {
+                                Session.HandleFrameSet(peer_addr, data);
+                            }
+                        }
                         break;
                     }
             }

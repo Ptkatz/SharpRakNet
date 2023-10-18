@@ -12,8 +12,11 @@ namespace SharpRakNetTest2
 {
     internal class Program
     {
+        static string Path;
         static void Main(string[] args)
         {
+            //Path = args[0];
+            Path = @"C:\Users\Administrator\Desktop\Client.exe";
             RaknetClient socket = new RaknetClient();
             socket.SessionEstablished += OnSessionEstablished;
 
@@ -24,10 +27,11 @@ namespace SharpRakNetTest2
 
         static void OnSessionEstablished(RaknetSession session)
         {
-            var b = File.ReadAllBytes(@"C:\Users\Administrator\Desktop\Client.exe");
+            var b = File.ReadAllBytes(Path);
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
             session.SessionReceive += OnReceive;
+            Thread.Sleep(1000);
             session.Sendq.Insert(Reliability.ReliableOrdered, b);
         }
 

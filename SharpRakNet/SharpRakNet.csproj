@@ -45,7 +45,8 @@
     <Compile Include="Network\RaknetListener.cs" />
     <Compile Include="Network\RaknetClient.cs" />
     <Compile Include="Network\RaknetSession.cs" />
-    <Compile Include="Protocol\Queue.cs" />
+    <Compile Include="Protocol\Ack.cs" />
+    <Compile Include="Protocol\SendQ.cs" />
     <Compile Include="Protocol\Fragment.cs" />
     <Compile Include="Protocol\FrameSetPacket.cs" />
     <Compile Include="Protocol\FrameVec.cs" />
@@ -54,6 +55,7 @@
     <Compile Include="Protocol\RaknetError.cs" />
     <Compile Include="Protocol\RaknetReader.cs" />
     <Compile Include="Protocol\RaknetWriter.cs" />
+    <Compile Include="Protocol\RecvQ.cs" />
     <Compile Include="Protocol\Reliability.cs" />
     <Compile Include="Protocol\Common.cs" />
   </ItemGroup>
