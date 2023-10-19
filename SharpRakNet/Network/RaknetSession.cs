@@ -247,11 +247,11 @@ namespace SharpRakNet.Network
 
         public Thread StartSender()
         {
-            Thread.Sleep(0);
-            Thread thread =  new Thread(() => 
+            Thread thread = new Thread(() => 
             {
                 while (true)
                 {
+                    Thread.Sleep(100);
                     foreach (FrameSetPacket item in Sendq.Flush(Common.CurTimestampMillis(), PeerEndPoint))
                     {
                         byte[] sdata = item.Serialize();
