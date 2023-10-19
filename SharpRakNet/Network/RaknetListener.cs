@@ -32,7 +32,8 @@ namespace SharpRakNet.Network
         void RemoveSession(RaknetSession session)
         {
             IPEndPoint peerAddr = session.PeerEndPoint;
-            Sessions.Remove(peerAddr);
+            lock(Sessions)
+                Sessions.Remove(peerAddr);
         }
 
         private void OnPacketReceived(IPEndPoint peer_addr, byte[] data)
@@ -86,9 +87,12 @@ namespace SharpRakNet.Network
             };
             byte[] reply2Buf = Packet.WritePacketConnectionOpenReply2(reply2Packet);
             var session = new RaknetSession(Socket, peer_addr, guid, rak_version, new RecvQ(), new SendQ(req.mtu));
-            Sessions.Add(peer_addr, session);
-            Socket.Send(peer_addr, reply2Buf);
-            SessionConnected(session);
+            lock (Sessions)
+            {
+                Sessions.Add(peer_addr, session);
+                Socket.Send(peer_addr, reply2Buf);
+                SessionConnected(session);
+            }
         }
 
         public void BeginListener()
@@ -98,11 +102,15 @@ namespace SharpRakNet.Network
 
         public void StopListener()
         {
-            for (int i = Sessions.Count - 1; i >= 0; i--)
+            lock (Sessions)
             {
-                var session = Sessions.Values.ElementAt(i);
-                session.SessionDisconnected(session);
+                for (int i = Sessions.Count - 1; i >= 0; i--)
+                {
+                    var session = Sessions.Values.ElementAt(i);
+                    session.SessionDisconnected(session);
+                }
             }
+
             Socket.Stop();
         }
 

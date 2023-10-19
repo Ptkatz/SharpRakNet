@@ -18,6 +18,7 @@ namespace SharpRakNet.Network
         private int repingCount;
         public int MaxRepingCount = 6;
         public Timer PingTimer;
+        public Thread SenderThread;
 
         public byte rak_version;
         public RecvQ Recvq;
@@ -42,8 +43,8 @@ namespace SharpRakNet.Network
             this.Sendq = sendQ;
             this.Recvq = recvQ;
 
-            //StartPing();
-            StartSender();
+            StartPing();
+            SenderThread = StartSender();
         }
 
         public void HandleFrameSet(IPEndPoint peer_addr, byte[] data)
@@ -225,8 +226,10 @@ namespace SharpRakNet.Network
         private void HandleDisconnectionNotification()
         {
             Connected = false;
+            SenderThread.Abort();
             PingTimer.Dispose();
             SessionDisconnected(this);
+            GC.Collect();
         }
 
         public void HandleConnect()
@@ -242,7 +245,7 @@ namespace SharpRakNet.Network
                 Sendq.Insert(Reliability.ReliableOrdered, buf);
         }
 
-        public void StartSender()
+        public Thread StartSender()
         {
             Thread.Sleep(0);
             Thread thread =  new Thread(() => 
@@ -257,6 +260,7 @@ namespace SharpRakNet.Network
                 }
             });
             thread.Start();
+            return thread;
         }
 
         public void StartPing()

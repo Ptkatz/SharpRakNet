@@ -30,12 +30,17 @@ namespace SharpRakNet.Network
 
         public void Send(IPEndPoint address, byte[] packet)
         {
-            Socket?.BeginSend(packet, packet.Length, address, (ar) =>
+            try
             {
-                if (_closed) return;
-                UdpClient client = (UdpClient)ar.AsyncState;
-                client.EndSend(ar);
-            }, Socket);
+                Socket?.BeginSend(packet, packet.Length, address, (ar) =>
+                {
+                    if (_closed) return;
+                    UdpClient client = (UdpClient)ar.AsyncState;
+                    client.EndSend(ar);
+                }, Socket);
+            }
+            catch
+            { }
         }
 
         public void Run()
