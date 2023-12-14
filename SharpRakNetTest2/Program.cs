@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading;
-using SharpRakNet;
+﻿using SharpRakNet.Protocol.Raknet;
 using SharpRakNet.Network;
+
+using System.Threading;
+using System.Net;
+using System.IO;
+using System;
 
 namespace SharpRakNetTest2
 {
@@ -36,7 +34,7 @@ namespace SharpRakNetTest2
             var b = File.ReadAllBytes(Path);
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
-            session.SessionReceive += OnReceive;
+            session.SessionReceiveRaw += OnReceive;
             Thread.Sleep(1000);
             session.Sendq.Insert(Reliability.ReliableOrdered, b);
         }
@@ -45,10 +43,12 @@ namespace SharpRakNetTest2
         {
             Console.WriteLine(session.PeerEndPoint);
         }
+
         static void OnReceive(byte[] buf)
         {
             PrintBytes(buf);
         }
+
         public static void PrintBytes(byte[] byteArray)
         {
             Console.Write("[");

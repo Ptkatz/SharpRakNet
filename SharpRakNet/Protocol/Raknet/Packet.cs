@@ -1,26 +1,24 @@
-﻿using SharpRakNet.Protocol;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Net;
-using System.Reflection.Emit;
-using System.Text;
+using System;
+using SharpRakNet.Network;
 
-namespace SharpRakNet
-{
-    public class Packet
-    {
-        public static PacketUnconnectedPing ReadPacketPing(byte[] buf)
-        {
-            RaknetReader cursor = new RaknetReader(buf);
-            cursor.ReadU8();
-            return new PacketUnconnectedPing
-            {
-                time = cursor.ReadI64(Endian.Big),
-                magic = cursor.ReadMagic(),
-                guid = cursor.ReadU64(Endian.Big),
-            };
+namespace SharpRakNet.Protocol.Raknet {
+    public class Packet {
+        public static int ID { get; }
+
+        public byte[] Buffer { get; set; }
+
+        public Packet(byte[] buffer) {
+            Buffer = buffer;
+        }
+
+        public virtual byte[] Serialize() {
+            throw new NotImplementedException("Packet.Serialize() is not implemented.");
+        }
+
+        public virtual T Deserialize<T>() where T : Packet {
+            throw new NotImplementedException("Packet.Deserialize() is not implemented.");
         }
 
         public static byte[] WritePacketPing(PacketUnconnectedPing packet)

@@ -1,12 +1,10 @@
-﻿using SharpRakNet;
+﻿using SharpRakNet.Protocol.Raknet;
 using SharpRakNet.Network;
-using SharpRakNet.Protocol;
-using System;
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
-using System.Text;
+using System;
 
 namespace SharpRakNetTest
 {
@@ -24,7 +22,7 @@ namespace SharpRakNetTest
         {
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
-            session.SessionReceive += OnReceive;
+            session.SessionReceiveRaw += OnReceive;
             session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3 });
         }
 
@@ -285,11 +283,11 @@ namespace SharpRakNetTest
 
         static bool TestSerializeDeserialize()
         {
-            var p = new byte[]
-            {
-        132, 0, 0, 0, 64, 0, 144, 0, 0, 0, 9, 146, 33, 7, 47, 57, 18, 128, 111, 0, 0, 0, 0, 20,
-        200, 47, 41, 0,
+            byte[] p = new byte[] {
+                132, 0, 0, 0, 64, 0, 144, 0, 0, 0, 9, 146, 33, 7, 47, 57, 18, 128, 111, 0, 0, 0, 0, 20,
+                200, 47, 41, 0,
             };
+
             var a = FrameSetPacket.Deserialize(p);
             var s = a.Serialize();
             if (s.SequenceEqual(p))

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 
-namespace SharpRakNet
+namespace SharpRakNet.Protocol.Raknet
 {
     public class FrameSetPacket
     {
@@ -18,42 +15,41 @@ namespace SharpRakNet
         public uint compound_size;
         public ushort compound_id;
         public uint fragment_index;
-        public List<byte> data = new List<byte>();
+        public byte[] data = new byte[] {};
         
         public FrameSetPacket()
         {
-            this.id = 0;
-            this.sequence_number = 0;
-            this.flags = 0;
-            this.length_in_bytes = 0;
-            this.reliable_frame_index = 0;
-            this.sequenced_frame_index = 0;
-            this.ordered_frame_index = 0;
-            this.order_channel = 0;
-            this.compound_size = 0;
-            this.compound_id = 0;
-            this.fragment_index = 0;
-            this.data = new List<byte>();
+            id = 0;
+            sequence_number = 0;
+            flags = 0;
+            length_in_bytes = 0;
+            reliable_frame_index = 0;
+            sequenced_frame_index = 0;
+            ordered_frame_index = 0;
+            order_channel = 0;
+            compound_size = 0;
+            compound_id = 0;
+            fragment_index = 0;
         }
 
         static readonly byte NEEDS_B_AND_AS_FLAG = 0x4;
         static readonly byte CONTINUOUS_SEND_FLAG = 0x8;
 
-        public FrameSetPacket(Reliability r, List<byte> data)
+        public FrameSetPacket(Reliability r, byte[] data)
         {
             byte flag = (byte)((byte)r << 5);
 
-            this.id = 0;
-            this.sequence_number = 0;
-            this.flags = flag;
-            this.length_in_bytes = (ushort)data.Count;
-            this.reliable_frame_index = 0;
-            this.sequenced_frame_index = 0;
-            this.ordered_frame_index = 0;
-            this.order_channel = 0;
-            this.compound_size = 0;
-            this.compound_id = 0;
-            this.fragment_index = 0;
+            id = 0;
+            sequence_number = 0;
+            flags = flag;
+            length_in_bytes = (ushort)data.Length;
+            reliable_frame_index = 0;
+            sequenced_frame_index = 0;
+            ordered_frame_index = 0;
+            order_channel = 0;
+            compound_size = 0;
+            compound_id = 0;
+            fragment_index = 0;
             this.data = data;
         }
 
@@ -61,11 +57,13 @@ namespace SharpRakNet
         {
             RaknetReader reader = new RaknetReader(buf);
 
-            FrameSetPacket ret = new FrameSetPacket();
-            ret.id = reader.ReadU8();
-            ret.sequence_number = reader.ReadU24(Endian.Little);
-            ret.flags = reader.ReadU8();
-            ret.length_in_bytes = (ushort)(reader.ReadU16(Endian.Big) / 8);
+            FrameSetPacket ret = new FrameSetPacket
+            {
+                id = reader.ReadU8(),
+                sequence_number = reader.ReadU24(Endian.Little),
+                flags = reader.ReadU8(),
+                length_in_bytes = (ushort)(reader.ReadU16(Endian.Big) / 8)
+            };
 
             if (ret.IsReliable())
             {
@@ -90,7 +88,7 @@ namespace SharpRakNet
             }
 
             byte[] buffer = reader.Read(ret.length_in_bytes);
-            ret.data = new List<byte>(buffer);
+            ret.data = buffer;
             
             return ret;
         }
@@ -132,7 +130,7 @@ namespace SharpRakNet
                 writer.WriteU16(compound_id, Endian.Big);
                 writer.WriteU32(fragment_index, Endian.Big);
             }
-            writer.Write(data.ToArray());
+            writer.Write(data);
 
             return writer.GetRawPayload();
         }
@@ -189,7 +187,7 @@ namespace SharpRakNet
             {
                 ret += 10; // compound size + compound id + fragment index
             }
-            ret += data.Count; // body
+            ret += data.Length; // body
             return ret;
         }
     }
