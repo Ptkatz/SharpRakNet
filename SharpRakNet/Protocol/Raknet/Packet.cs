@@ -4,27 +4,25 @@ using System;
 using SharpRakNet.Network;
 
 namespace SharpRakNet.Protocol.Raknet {
-    public class Packet {
-        public static int ID { get; }
-
+    public abstract class Packet {
         public byte[] Buffer { get; set; }
 
         public Packet(byte[] buffer) {
             Buffer = buffer;
         }
 
-        public virtual byte[] Serialize() {
-            throw new NotImplementedException("Packet.Serialize() is not implemented.");
+        public T Cast<T>() where T : Packet {
+            return (T)Activator.CreateInstance(typeof(T), new object[] { Buffer });
         }
 
-        public virtual T Deserialize<T>() where T : Packet {
-            throw new NotImplementedException("Packet.Deserialize() is not implemented.");
-        }
+        public abstract byte[] Serialize();
+
+        public abstract void Deserialize();
 
         public static byte[] WritePacketPing(PacketUnconnectedPing packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.UnconnectedPing1.ToU8());
+            cursor.WriteU8(PacketID.UnconnectedPing1);
             cursor.WriteI64(packet.time, Endian.Big);
             cursor.WriteMagic();
             cursor.WriteU64(packet.guid, Endian.Big);
@@ -47,7 +45,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketPong(PacketUnconnectedPong packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.UnconnectedPong.ToU8());
+            cursor.WriteU8(PacketID.UnconnectedPong);
             cursor.WriteI64(packet.time, Endian.Big);
             cursor.WriteU64(packet.guid, Endian.Big);
             cursor.WriteMagic();
@@ -70,7 +68,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectionOpenRequest1(OpenConnectionRequest1 packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.OpenConnectionRequest1.ToU8());
+            cursor.WriteU8(PacketID.OpenConnectionRequest1);
             cursor.WriteMagic();
             cursor.WriteU8(packet.protocol_version);
             cursor.Write(new byte[packet.mtu_size - 46]);
@@ -93,7 +91,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectionOpenRequest2(OpenConnectionRequest2 packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.OpenConnectionRequest2.ToU8());
+            cursor.WriteU8(PacketID.OpenConnectionRequest2);
             cursor.WriteMagic();
             cursor.WriteAddress(packet.address);
             cursor.WriteU16(packet.mtu, Endian.Big);
@@ -117,7 +115,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectionOpenReply1(OpenConnectionReply1 packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.OpenConnectionReply1.ToU8());
+            cursor.WriteU8(PacketID.OpenConnectionReply1);
             cursor.WriteMagic();
             cursor.WriteU64(packet.guid, Endian.Big);
             cursor.WriteU8(packet.use_encryption);
@@ -142,7 +140,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectionOpenReply2(OpenConnectionReply2 packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.OpenConnectionReply2.ToU8());
+            cursor.WriteU8(PacketID.OpenConnectionReply2);
             cursor.WriteMagic();
             cursor.WriteU64(packet.guid, Endian.Big);
             cursor.WriteAddress(packet.address);
@@ -165,7 +163,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketAlreadyConnected(AlreadyConnected packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.AlreadyConnected.ToU8());
+            cursor.WriteU8(PacketID.AlreadyConnected);
             cursor.WriteMagic();
             cursor.WriteU64(packet.guid, Endian.Big);
             return cursor.GetRawPayload();
@@ -186,7 +184,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WriteIncompatibleProtocolVersion(IncompatibleProtocolVersion packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.IncompatibleProtocolVersion.ToU8());
+            cursor.WriteU8(PacketID.IncompatibleProtocolVersion);
             cursor.WriteU8(packet.server_protocol);
             cursor.WriteMagic();
             cursor.WriteU64(packet.server_guid, Endian.Big);
@@ -209,7 +207,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketNack(Nack packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.Nack.ToU8());
+            cursor.WriteU8(PacketID.Nack);
             cursor.WriteSequences(packet.sequences);
             return cursor.GetRawPayload();
         }
@@ -231,7 +229,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketAck(Ack packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.Ack.ToU8());
+            cursor.WriteU8(PacketID.Ack);
             cursor.WriteSequences(packet.sequences);
             return cursor.GetRawPayload();
         }
@@ -251,7 +249,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectionRequest(ConnectionRequest packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.ConnectionRequest.ToU8());
+            cursor.WriteU8(PacketID.ConnectionRequest);
             cursor.WriteU64(packet.guid, Endian.Big);
             cursor.WriteI64(packet.time, Endian.Big);
             cursor.WriteU8(packet.use_encryption);
@@ -274,7 +272,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectionRequestAccepted(ConnectionRequestAccepted packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.ConnectionRequestAccepted.ToU8());
+            cursor.WriteU8(PacketID.ConnectionRequestAccepted);
             cursor.WriteAddress(packet.client_address);
             cursor.WriteU16(packet.system_index, Endian.Big);
             for (int i = 0; i < 10; i++)
@@ -309,7 +307,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketNewIncomingConnection(NewIncomingConnection packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.NewIncomingConnection.ToU8());
+            cursor.WriteU8(PacketID.NewIncomingConnection);
             cursor.WriteAddress(packet.server_address);
             IPEndPoint tmpAddress = new IPEndPoint(IPAddress.Parse("0.0.0.0"), 0);
             for (int i = 0; i < 10; i++)
@@ -334,7 +332,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectedPing(ConnectedPing packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.ConnectedPing.ToU8());
+            cursor.WriteU8(PacketID.ConnectedPing);
             cursor.WriteI64(packet.client_timestamp, Endian.Big);
             return cursor.GetRawPayload();
         }
@@ -353,7 +351,7 @@ namespace SharpRakNet.Protocol.Raknet {
         public static byte[] WritePacketConnectedPong(ConnectedPong packet)
         {
             RaknetWriter cursor = new RaknetWriter();
-            cursor.WriteU8(PacketID.ConnectedPong.ToU8());
+            cursor.WriteU8(PacketID.ConnectedPong);
             cursor.WriteI64(packet.client_timestamp, Endian.Big);
             cursor.WriteI64(packet.server_timestamp, Endian.Big);
             return cursor.GetRawPayload();
@@ -382,19 +380,6 @@ namespace SharpRakNet.Protocol.Raknet {
         Nack = 0xa0,
         Ack = 0xc0,
         Game = 0xfe,
-    }
-
-    public static class PacketIDExtensions
-    {
-        public static byte ToU8(this PacketID packetID)
-        {
-            return (byte)packetID;
-        }
-
-        public static PacketID FromU8(byte id)
-        {
-            return (PacketID)id;
-        }
     }
 
     public class ConnectedPing

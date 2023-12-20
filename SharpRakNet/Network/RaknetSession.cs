@@ -1,15 +1,20 @@
 ﻿using SharpRakNet.Protocol.Raknet;
+
+using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Net;
 using System;
-using System.Collections.Generic;
+
 
 namespace SharpRakNet.Network
 {
     public class RaknetSession
     {
         public IPEndPoint PeerEndPoint { get; private set; }
-        private Dictionary<int, Packet> Packets;
+
+        private static readonly Dictionary<int, List<(Type, Delegate)>> Listeners = new Dictionary<int, List<(Type, Delegate)>>();
+
         public Thread SenderThread;
         public byte rak_version;
         public Timer PingTimer;
@@ -18,12 +23,10 @@ namespace SharpRakNet.Network
         public SendQ Sendq;
 
         private readonly AsyncUdpClient Socket;
+        private bool thrownUnkownPackets;
         public int MaxRepingCount = 6;
         private int repingCount;
         private ulong guid;
-
-        public delegate void PacketReceivedDelegate(RaknetSession session, Packet packet);
-        public PacketReceivedDelegate PacketReceived = delegate { };
 
         public delegate void SessionDisconnectedDelegate(RaknetSession session);
         public SessionDisconnectedDelegate SessionDisconnected = delegate { };
@@ -31,12 +34,13 @@ namespace SharpRakNet.Network
         public delegate void PacketReceiveBytesDelegate(byte[] bytes);
         public PacketReceiveBytesDelegate SessionReceiveRaw = delegate { };
 
-        public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid, byte rakVersion, RecvQ recvQ, SendQ sendQ)
+        public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid, byte rakVersion, RecvQ recvQ, SendQ sendQ, bool thrownUnkownPackets = false)
         {
             this.Socket = Socket;
             PeerEndPoint = Address;
             this.guid = guid;
             Connected = true;
+            this.thrownUnkownPackets = thrownUnkownPackets;
 
             rak_version = rakVersion;
 
@@ -45,6 +49,25 @@ namespace SharpRakNet.Network
 
             StartPing();
             SenderThread = StartSender();
+        }
+
+        public void Subscribe<T>(Action<T> action) where T : Packet {
+            Type packetType = typeof(T);
+
+            //Ensure the packet has a registered packet id.
+            RegisterPacketID attribute = 
+                packetType.GetCustomAttribute<RegisterPacketID>() ?? throw new Exception(packetType.FullName + " must have the RegisterPacketID attribute.");
+
+            int packetId = attribute.ID;
+
+            bool exists = Listeners.TryGetValue(packetId, out var listeners);
+            if(!exists)
+            {
+                listeners = new List<(Type, Delegate)>();
+                Listeners.Add(packetId, listeners);
+            }
+
+            listeners.Add((packetType, action));
         }
 
         public void HandleFrameSet(IPEndPoint peer_addr, byte[] data)
@@ -56,9 +79,11 @@ namespace SharpRakNet.Network
                     HandleFrame(peer_addr, f);
                 }
             }
-            var reader = new RaknetReader(data);
-            byte headerFlags = reader.ReadU8();
-            switch (PacketIDExtensions.FromU8(headerFlags))
+
+            RaknetReader stream = new RaknetReader(data);
+            byte headerFlags = stream.ReadU8();
+
+            switch ((PacketID)headerFlags)
             {
                 case PacketID.Nack:
                     {
@@ -110,8 +135,8 @@ namespace SharpRakNet.Network
                     }
                 default:
                     {
-                        if (PacketIDExtensions.FromU8(data[0]) >= PacketID.FrameSetPacketBegin 
-                            && PacketIDExtensions.FromU8(data[0]) <= PacketID.FrameSetPacketEnd)
+                        if ((PacketID)data[0] >= PacketID.FrameSetPacketBegin 
+                            && (PacketID)data[0] <= PacketID.FrameSetPacketEnd)
                         {
                             var frames = new FrameVec(data);
                             lock (Recvq)
@@ -143,10 +168,9 @@ namespace SharpRakNet.Network
             }
         }
 
-
         public void HandleFrame(IPEndPoint address, FrameSetPacket frame)
         {
-            PacketID packetID = PacketIDExtensions.FromU8(frame.data[0]);
+            PacketID packetID = (PacketID)frame.data[0];
 
             switch (packetID)
             {
@@ -169,7 +193,29 @@ namespace SharpRakNet.Network
                     break;
                 default:
                     SessionReceiveRaw(frame.data);
+                    HandleIncomingPacket(frame.data);
                     break;
+            }
+        }
+
+        private void HandleIncomingPacket(byte[] buffer) {
+            byte packetID = buffer[0];
+
+            bool exists = Listeners.TryGetValue(packetID, out List<(Type, Delegate)> value);
+            if (!exists) return;
+
+            foreach((Type, Delegate) registration in value)
+            {
+                Delegate callback = registration.Item2;
+                Type packetType = registration.Item1;
+
+                MethodInfo method = packetType.GetMethod("Deserialize");
+                if (method == null) return;
+
+                object packet = Activator.CreateInstance(packetType, new object[] { buffer });
+                method.Invoke(packet, new object[] {});
+
+                callback.DynamicInvoke(packet);
             }
         }
 
@@ -181,6 +227,7 @@ namespace SharpRakNet.Network
                 client_timestamp = pingPacket.client_timestamp,
                 server_timestamp = Common.CurTimestampMillis(),
             };
+
             byte[] buf = Packet.WritePacketConnectedPong(pongPacket);
             lock (Sendq)
                 Sendq.Insert(Reliability.Unreliable, buf);

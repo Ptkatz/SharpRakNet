@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using SharpRakNet.Protocol;
+using SharpRakNet.Protocol.Raknet;
 
 namespace SharpRakNet
 {
@@ -15,6 +16,11 @@ namespace SharpRakNet
         public void Write(byte[] v)
         {
             buf.AddRange(v);
+        }
+
+
+        public void WriteU8(PacketID id) {
+            WriteU8((byte)id);
         }
 
         public void WriteU8(byte v)

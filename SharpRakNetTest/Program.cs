@@ -1,12 +1,13 @@
 ﻿using SharpRakNet.Protocol.Raknet;
 using SharpRakNet.Network;
 
+using SharpRakNet.Protocol.Packets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System;
 
-namespace SharpRakNetTest
+namespace RaknetServerTest
 {
     internal class Program
     {
@@ -15,7 +16,10 @@ namespace SharpRakNetTest
             RaknetListener listener = new RaknetListener(new IPEndPoint(IPAddress.Parse("0.0.0.0"), 19132));
             listener.SessionConnected += OnSessionEstablished;
             listener.BeginListener();
-            while (true) { }
+
+            listener.Subscribe<UnconnectedPing>(OnRecievePing);
+
+            while (true) {}
         }
 
         static void OnSessionEstablished(RaknetSession session)
@@ -26,14 +30,41 @@ namespace SharpRakNetTest
             session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3 });
         }
 
+        static void OnRecievePing(IPEndPoint address, UnconnectedPing packet) {
+            string message = "--- " + address.Address + " ---";
+
+            Console.WriteLine(message);
+
+            Console.WriteLine("Ping Time: " + packet.time);
+            Console.WriteLine("Ping Magic: " + packet.magic);
+            Console.WriteLine("Ping GUID: " + packet.guid);
+
+            Console.WriteLine(string.Concat(Enumerable.Repeat("-", message.Length)));
+        }
+
         static void OnDisconnected(RaknetSession session)
         {
             Console.WriteLine(session.PeerEndPoint);
         }
 
-        static void OnReceive(byte[] buf)
+        static void OnReceive(byte[] buffer)
         {
-            Console.WriteLine($"Length {buf.Length}");
+            Console.WriteLine($"Length {buffer.Length}");
+            PrintBytes(buffer);
+
+            //if (buffer[0] == 1)
+            //{
+            //    UnconnectedPing packet = new Packet(buffer).Cast<UnconnectedPing>();
+            //    packet.Deserialize();
+            //
+            //    Console.WriteLine(packet.time);
+            //}
+        }
+
+        static void OnReceivePacket(RaknetSession session, Packet packet)
+        {
+            packet.Deserialize();
+            Console.WriteLine($"{packet.Buffer[0]}");
             //PrintBytes(buf);
         }
 

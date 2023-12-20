@@ -46,11 +46,11 @@ namespace SharpRakNet.Protocol.Raknet
             keys.Sort();
 
             uint sequence_number = frames[keys.Last()].sequence_number;
-            List<byte> buf = new List<byte>();
+            List<byte> buffer = new List<byte>();
 
             foreach (uint key in keys)
             {
-                buf.AddRange(frames[key].data);
+                buffer.AddRange(frames[key].data);
             }
 
             FrameSetPacket ret = new FrameSetPacket
@@ -58,7 +58,7 @@ namespace SharpRakNet.Protocol.Raknet
                 id = 0,
                 sequence_number = sequence_number,
                 flags = 0,
-                length_in_bytes = (ushort)(buf.Count * 8),
+                length_in_bytes = (ushort)(buffer.Count * 8),
                 reliable_frame_index = 0,
                 sequenced_frame_index = 0,
                 ordered_frame_index = ordered_frame_index,
@@ -66,7 +66,7 @@ namespace SharpRakNet.Protocol.Raknet
                 compound_size = 0,
                 compound_id = 0,
                 fragment_index = 0,
-                data = buf
+                data = buffer.ToArray()
             };
 
             ret.flags = (byte)(flags & 224);
