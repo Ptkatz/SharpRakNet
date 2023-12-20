@@ -36,6 +36,19 @@ namespace SharpRakNet.Network
             RegisterPacketID attribute =
                 packetType.GetCustomAttribute<RegisterPacketID>() ?? throw new Exception(packetType.FullName + " must have the RegisterPacketID attribute.");
 
+            bool hasBufferConstructor = false;
+            foreach (ConstructorInfo constructor in packetType.GetConstructors())
+            {
+                ParameterInfo[] parameters = constructor.GetParameters();
+
+                if (parameters.Length != 1) continue;
+                if (parameters[0].ParameterType != typeof(byte[])) continue;
+
+                hasBufferConstructor = true;
+            }
+
+            if (!hasBufferConstructor) throw new Exception(packetType.FullName + " must have a constructor that takes only a byte[].");
+
             int packetId = attribute.ID;
 
             bool exists = Listeners.TryGetValue(packetId, out var listeners);
