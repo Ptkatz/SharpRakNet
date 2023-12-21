@@ -1,7 +1,7 @@
-﻿using SharpRakNet.Protocol.Raknet;
+﻿using SharpRakNet.Protocol.Packets;
+using SharpRakNet.Protocol.Raknet;
 using SharpRakNet.Network;
 
-using SharpRakNet.Protocol.Packets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -26,7 +26,7 @@ namespace RaknetServerTest
         {
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
-            session.SessionReceiveRaw += OnReceive;
+            //session.SessionReceiveRaw += OnReceive;
             session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3 });
         }
 
@@ -47,18 +47,10 @@ namespace RaknetServerTest
             Console.WriteLine(session.PeerEndPoint);
         }
 
-        static void OnReceive(byte[] buffer)
+        static void OnReceive(IPEndPoint source, byte[] buffer)
         {
             Console.WriteLine($"Length {buffer.Length}");
             PrintBytes(buffer);
-
-            //if (buffer[0] == 1)
-            //{
-            //    UnconnectedPing packet = new Packet(buffer).Cast<UnconnectedPing>();
-            //    packet.Deserialize();
-            //
-            //    Console.WriteLine(packet.time);
-            //}
         }
 
         static void OnReceivePacket(RaknetSession session, Packet packet)

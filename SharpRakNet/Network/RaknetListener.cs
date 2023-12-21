@@ -63,19 +63,21 @@ namespace SharpRakNet.Network
 
         private void OnSessionEstablished(RaknetSession session)
         {
+            session.SessionReceiveRaw += OnPacketReceived;
             session.SessionDisconnected += RemoveSession;
         }
 
         void RemoveSession(RaknetSession session)
         {
+            session.SessionReceiveRaw -= OnPacketReceived;
             IPEndPoint peerAddr = session.PeerEndPoint;
+
             lock(Sessions)
                 Sessions.Remove(peerAddr);
         }
 
         private void OnPacketReceived(IPEndPoint address, byte[] data)
         {
-            Console.WriteLine(data[0]);
             switch ((PacketID)data[0]) {
                 case PacketID.OpenConnectionRequest1:
                     HandleOpenConnectionRequest1(address, data);
@@ -98,8 +100,6 @@ namespace SharpRakNet.Network
         private void HandleIncomingPacket(IPEndPoint address, byte[] buffer)
         {
             byte packetID = buffer[0];
-
-            Console.WriteLine(packetID);
 
             bool exists = Listeners.TryGetValue(packetID, out List<(Type, Delegate)> value);
             if (!exists) return;
