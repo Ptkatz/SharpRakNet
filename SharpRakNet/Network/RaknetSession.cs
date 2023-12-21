@@ -5,8 +5,6 @@ using System.Reflection;
 using System.Threading;
 using System.Net;
 using System;
-using System.Linq;
-
 
 namespace SharpRakNet.Network
 {

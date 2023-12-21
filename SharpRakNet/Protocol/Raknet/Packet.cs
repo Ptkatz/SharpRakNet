@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 using System;
-using SharpRakNet.Network;
 
 namespace SharpRakNet.Protocol.Raknet {
     public abstract class Packet {

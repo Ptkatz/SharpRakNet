@@ -1,7 +1,7 @@
-﻿using SharpRakNet.Protocol.Raknet;
+﻿using SharpRakNet.Protocol.Packets;
+using SharpRakNet.Protocol.Raknet;
 using SharpRakNet.Network;
 
-using SharpRakNet.Protocol.Packets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -51,14 +51,6 @@ namespace RaknetServerTest
         {
             Console.WriteLine($"Length {buffer.Length}");
             PrintBytes(buffer);
-
-            //if (buffer[0] == 1)
-            //{
-            //    UnconnectedPing packet = new Packet(buffer).Cast<UnconnectedPing>();
-            //    packet.Deserialize();
-            //
-            //    Console.WriteLine(packet.time);
-            //}
         }
 
         static void OnReceivePacket(RaknetSession session, Packet packet)
