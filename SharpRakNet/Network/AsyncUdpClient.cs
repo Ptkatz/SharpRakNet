@@ -3,6 +3,7 @@
 using System.Net.Sockets;
 using System.Net;
 using System;
+using System.Reflection;
 
 namespace SharpRakNet.Network
 {
@@ -33,12 +34,11 @@ namespace SharpRakNet.Network
                 Socket?.BeginSend(packet, packet.Length, address, (ar) =>
                 {
                     if (_closed) return;
+                    
                     UdpClient client = (UdpClient)ar.AsyncState;
                     client.EndSend(ar);
                 }, Socket);
-            }
-            catch
-            { }
+            } catch {};
         }
 
         public void Run()
@@ -47,9 +47,11 @@ namespace SharpRakNet.Network
             Socket?.BeginReceive(recv = (ar) =>
             {
                 if (_closed) return;
+
                 Socket = (UdpClient)ar.AsyncState;
                 byte[] receivedData = Socket.EndReceive(ar, ref source);
                 Socket.BeginReceive(recv, Socket);
+
                 PacketReceived(source, receivedData);
             }, Socket);
         }

@@ -26,7 +26,7 @@ namespace RaknetServerTest
         {
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
-            session.SessionReceiveRaw += OnReceive;
+            //session.SessionReceiveRaw += OnReceive;
             session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3 });
         }
 
@@ -47,7 +47,7 @@ namespace RaknetServerTest
             Console.WriteLine(session.PeerEndPoint);
         }
 
-        static void OnReceive(byte[] buffer)
+        static void OnReceive(IPEndPoint source, byte[] buffer)
         {
             Console.WriteLine($"Length {buffer.Length}");
             PrintBytes(buffer);

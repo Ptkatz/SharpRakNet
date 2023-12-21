@@ -32,7 +32,7 @@ namespace SharpRakNet.Network
         public delegate void SessionDisconnectedDelegate(RaknetSession session);
         public SessionDisconnectedDelegate SessionDisconnected = delegate { };
 
-        public delegate void PacketReceiveBytesDelegate(byte[] bytes);
+        public delegate void PacketReceiveBytesDelegate(IPEndPoint address, byte[] bytes);
         public PacketReceiveBytesDelegate SessionReceiveRaw = delegate { };
 
         public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid, byte rakVersion, RecvQ recvQ, SendQ sendQ, bool thrownUnkownPackets = false)
@@ -206,7 +206,7 @@ namespace SharpRakNet.Network
                     HandleDisconnectionNotification();
                     break;
                 default:
-                    SessionReceiveRaw(frame.data);
+                    SessionReceiveRaw(address, frame.data);
                     HandleIncomingPacket(frame.data);
                     break;
             }

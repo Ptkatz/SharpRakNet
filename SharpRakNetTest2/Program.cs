@@ -58,7 +58,7 @@ namespace RaknetClientTest
             Console.WriteLine(session.PeerEndPoint);
         }
 
-        static void OnReceive(byte[] buf)
+        static void OnReceive(IPEndPoint source, byte[] buf)
         {
             PrintBytes(buf);
         }
