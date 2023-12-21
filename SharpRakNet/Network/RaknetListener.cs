@@ -1,27 +1,64 @@
-﻿using SharpRakNet.Protocol;
-using System;
+﻿using SharpRakNet.Protocol.Raknet;
+
 using System.Collections.Generic;
+using System.Reflection;
 using System.Linq;
 using System.Net;
+using System;
 
 namespace SharpRakNet.Network
 {
     public class RaknetListener
     {
-        public AsyncUdpClient Socket;
-        private ulong guid;
-        private Dictionary<IPEndPoint, RaknetSession> Sessions = new Dictionary<IPEndPoint, RaknetSession>();
-        private byte rak_version = 0xB;
-
         public delegate void SessionConnectedDelegate(RaknetSession session);
         public SessionConnectedDelegate SessionConnected = delegate { };
+        public AsyncUdpClient Socket;
+
+        private static readonly Dictionary<int, List<(Type, Delegate)>> Listeners = new Dictionary<int, List<(Type, Delegate)>>();
+        private Dictionary<IPEndPoint, RaknetSession> Sessions = new Dictionary<IPEndPoint, RaknetSession>();
+
+        private byte rak_version = 0xB;
+        private ulong guid;
 
         public RaknetListener(IPEndPoint address)
         {
             Socket = new AsyncUdpClient(address);
-            Socket.PacketReceived += this.OnPacketReceived;
+            Socket.PacketReceived += OnPacketReceived;
             SessionConnected += OnSessionEstablished;
             guid = (ulong)new Random().NextDouble() * ulong.MaxValue;
+        }
+
+        public void Subscribe<T>(Action<IPEndPoint, T> action) where T : Packet
+        {
+            Type packetType = typeof(T);
+
+            //Ensure the packet has a registered packet id.
+            RegisterPacketID attribute =
+                packetType.GetCustomAttribute<RegisterPacketID>() ?? throw new Exception(packetType.FullName + " must have the RegisterPacketID attribute.");
+
+            bool hasBufferConstructor = false;
+            foreach (ConstructorInfo constructor in packetType.GetConstructors())
+            {
+                ParameterInfo[] parameters = constructor.GetParameters();
+
+                if (parameters.Length != 1) continue;
+                if (parameters[0].ParameterType != typeof(byte[])) continue;
+
+                hasBufferConstructor = true;
+            }
+
+            if (!hasBufferConstructor) throw new Exception(packetType.FullName + " must have a constructor that takes only a byte[].");
+
+            int packetId = attribute.ID;
+
+            bool exists = Listeners.TryGetValue(packetId, out var listeners);
+            if (!exists)
+            {
+                listeners = new List<(Type, Delegate)>();
+                Listeners.Add(packetId, listeners);
+            }
+
+            listeners.Add((packetType, action));
         }
 
         private void OnSessionEstablished(RaknetSession session)
@@ -36,28 +73,49 @@ namespace SharpRakNet.Network
                 Sessions.Remove(peerAddr);
         }
 
-        private void OnPacketReceived(IPEndPoint peer_addr, byte[] data)
+        private void OnPacketReceived(IPEndPoint address, byte[] data)
         {
-            switch (PacketIDExtensions.FromU8(data[0]))
-            {
+            Console.WriteLine(data[0]);
+            switch ((PacketID)data[0]) {
                 case PacketID.OpenConnectionRequest1:
-                    {
-                        HandleOpenConnectionRequest1(peer_addr, data);
-                        break;
-                    }
+                    HandleOpenConnectionRequest1(address, data);
+                    break;
                 case PacketID.OpenConnectionRequest2:
-                    {
-                        HandleOpenConnectionRequest2(peer_addr, data);
-                        break;
-                    }
+                    HandleOpenConnectionRequest2(address, data);
+                    break;
                 default:
                     {
-                        if (Sessions.TryGetValue(peer_addr, out var session))
+                        if (Sessions.TryGetValue(address, out var session))
                         {
-                            session.HandleFrameSet(peer_addr, data);
+                            HandleIncomingPacket(address, data);
+                            session.HandleFrameSet(address, data);
                         }
                         break;
                     }
+            }
+        }
+
+        private void HandleIncomingPacket(IPEndPoint address, byte[] buffer)
+        {
+            byte packetID = buffer[0];
+
+            Console.WriteLine(packetID);
+
+            bool exists = Listeners.TryGetValue(packetID, out List<(Type, Delegate)> value);
+            if (!exists) return;
+
+            foreach ((Type, Delegate) registration in value)
+            {
+                Delegate callback = registration.Item2;
+                Type packetType = registration.Item1;
+
+                MethodInfo method = packetType.GetMethod("Deserialize");
+                if (method == null) return;
+
+                object packet = Activator.CreateInstance(packetType, new object[] { buffer });
+                method.Invoke(packet, new object[] {});
+
+                callback.DynamicInvoke(address, packet);
             }
         }
 

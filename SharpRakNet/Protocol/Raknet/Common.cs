@@ -1,28 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Net;
-using System.Text;
-using System.Collections;
+using System;
 
-namespace SharpRakNet
+namespace SharpRakNet.Protocol.Raknet
 {
     public class Common
     {
         public static readonly byte RAKNET_PROTOCOL_VERSION = 0xA;
         public static readonly ushort RAKNET_CLIENT_MTU = 1400;
         public static readonly int RECEIVE_TIMEOUT = 60000;
-        public static long CurTimestampMillis()
-        {
+        public static long CurTimestampMillis() {
             DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             TimeSpan timeSinceEpoch = DateTime.UtcNow - unixEpoch;
             long milliseconds = (long)timeSinceEpoch.TotalMilliseconds;
             return milliseconds;
         }
+
         public static UdpClient CreateListener(IPEndPoint endpoint)
         {
-            var listener = new UdpClient();
+            UdpClient listener = new UdpClient();
 
             if (Environment.OSVersion.Platform != PlatformID.MacOSX)
             {

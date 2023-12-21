@@ -1,10 +1,11 @@
-﻿using SharpRakNet.Protocol;
-using System;
+﻿using SharpRakNet.Protocol.Raknet;
+
 using System.Collections.Generic;
-using System.IO;
+using System.Text;
 using System.Linq;
 using System.Net;
-using System.Text;
+using System.IO;
+using System;
 
 namespace SharpRakNet
 {

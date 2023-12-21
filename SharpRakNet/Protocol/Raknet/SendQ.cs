@@ -1,11 +1,8 @@
-﻿using SharpRakNet.Protocol;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 
-namespace SharpRakNet
+namespace SharpRakNet.Protocol.Raknet
 {
     public class SendQ
     {
@@ -42,25 +39,25 @@ namespace SharpRakNet
             srtt = DEFAULT_TIMEOUT_MILLS;
         }
 
-        public void Insert(Reliability reliability, byte[] buf)
+        public void Insert(Reliability reliability, byte[] buffer)
         {
             switch (reliability)
             {
                 case Reliability.Unreliable:
-                    if (buf.Length > (mtu - 60))
+                    if (buffer.Length > (mtu - 60))
                     {
                         throw new RaknetError("PacketSizeExceedMTU");
                     }
-                    FrameSetPacket frame = new FrameSetPacket(reliability, new List<byte>(buf));
+                    FrameSetPacket frame = new FrameSetPacket(reliability, buffer);
                     lock (packetsLock)
                         packets.Add(frame);
                     break;
                 case Reliability.UnreliableSequenced:
-                    if (buf.Length > (mtu - 60))
+                    if (buffer.Length > (mtu - 60))
                     {
                         throw new RaknetError("PacketSizeExceedMTU");
                     }
-                    FrameSetPacket sequencedFrame = new FrameSetPacket(reliability, new List<byte>(buf));
+                    FrameSetPacket sequencedFrame = new FrameSetPacket(reliability, buffer);
                     sequencedFrame.ordered_frame_index = ordered_frame_index;
                     sequencedFrame.sequenced_frame_index = sequenced_frame_index;
                     lock (packetsLock)
@@ -68,20 +65,20 @@ namespace SharpRakNet
                     sequenced_frame_index++;
                     break;
                 case Reliability.Reliable:
-                    if (buf.Length > (mtu - 60))
+                    if (buffer.Length > (mtu - 60))
                     {
                         throw new RaknetError("PacketSizeExceedMTU");
                     }
-                    FrameSetPacket reliableFrame = new FrameSetPacket(reliability, new List<byte>(buf));
+                    FrameSetPacket reliableFrame = new FrameSetPacket(reliability, buffer);
                     reliableFrame.reliable_frame_index = reliable_frame_index;
                     lock (packetsLock)
                         packets.Add(reliableFrame);
                     reliable_frame_index++;
                     break;
                 case Reliability.ReliableOrdered:
-                    if (buf.Length < (mtu - 60))
+                    if (buffer.Length < (mtu - 60))
                     {
-                        FrameSetPacket orderedFrame = new FrameSetPacket(reliability, new List<byte>(buf));
+                        FrameSetPacket orderedFrame = new FrameSetPacket(reliability, buffer);
                         orderedFrame.reliable_frame_index = reliable_frame_index;
                         orderedFrame.ordered_frame_index = ordered_frame_index;
                         lock (packetsLock)
@@ -92,8 +89,8 @@ namespace SharpRakNet
                     else
                     {
                         int max = (mtu - 60);
-                        int compoundSize = buf.Length / max;
-                        if (buf.Length % max != 0)
+                        int compoundSize = buffer.Length / max;
+                        if (buffer.Length % max != 0)
                         {
                             compoundSize++;
                         }
@@ -101,8 +98,8 @@ namespace SharpRakNet
                         for (int i = 0; i < compoundSize; i++)
                         {
                             int begin = (max * i);
-                            int end = (i == compoundSize - 1) ? buf.Length : (max * (i + 1));
-                            FrameSetPacket compoundFrame = new FrameSetPacket(reliability, new List<byte>(new List<byte>(buf).GetRange(begin, end - begin)));
+                            int end = (i == compoundSize - 1) ? buffer.Length : (max * (i + 1));
+                            FrameSetPacket compoundFrame = new FrameSetPacket(reliability, new List<byte>(buffer).GetRange(begin, end - begin).ToArray());
                             compoundFrame.flags |= 16;
                             compoundFrame.compound_size = (uint)compoundSize;
                             compoundFrame.compound_id = compound_id;
@@ -118,11 +115,11 @@ namespace SharpRakNet
                     }
                     break;
                 case Reliability.ReliableSequenced:
-                    if (buf.Length > (mtu - 60))
+                    if (buffer.Length > (mtu - 60))
                     {
                         throw new RaknetError("PacketSizeExceedMTU");
                     }
-                    FrameSetPacket reliableSequencedFrame = new FrameSetPacket(reliability, new List<byte>(buf));
+                    FrameSetPacket reliableSequencedFrame = new FrameSetPacket(reliability, buffer);
                     reliableSequencedFrame.reliable_frame_index = reliable_frame_index;
                     reliableSequencedFrame.sequenced_frame_index = sequenced_frame_index;
                     reliableSequencedFrame.ordered_frame_index = ordered_frame_index;

@@ -1,50 +1,87 @@
-﻿using SharpRakNet.Protocol;
-using System;
+﻿using SharpRakNet.Protocol.Raknet;
+
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
+using System.Reflection;
 using System.Threading;
+using System.Net;
+using System;
+using System.Linq;
+
 
 namespace SharpRakNet.Network
 {
     public class RaknetSession
     {
         public IPEndPoint PeerEndPoint { get; private set; }
-        private AsyncUdpClient Socket;
-        private ulong guid;
-        public bool Connected;
-        private int repingCount;
-        public int MaxRepingCount = 6;
-        public Timer PingTimer;
-        public Thread SenderThread;
 
+        private static readonly Dictionary<int, List<(Type, Delegate)>> Listeners = new Dictionary<int, List<(Type, Delegate)>>();
+
+        public Thread SenderThread;
         public byte rak_version;
+        public Timer PingTimer;
+        public bool Connected;
         public RecvQ Recvq;
         public SendQ Sendq;
 
-        public delegate void PacketReceivedDelegate(RaknetSession session, Packet packet);
-        public PacketReceivedDelegate PacketReceived = delegate { };
+        private readonly AsyncUdpClient Socket;
+        private bool thrownUnkownPackets;
+        public int MaxRepingCount = 6;
+        private int repingCount;
+        private ulong guid;
 
         public delegate void SessionDisconnectedDelegate(RaknetSession session);
         public SessionDisconnectedDelegate SessionDisconnected = delegate { };
 
         public delegate void PacketReceiveBytesDelegate(byte[] bytes);
-        public PacketReceiveBytesDelegate SessionReceive = delegate { };
+        public PacketReceiveBytesDelegate SessionReceiveRaw = delegate { };
 
-        public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid, byte rak_version, RecvQ recvQ, SendQ sendQ)
+        public RaknetSession(AsyncUdpClient Socket, IPEndPoint Address, ulong guid, byte rakVersion, RecvQ recvQ, SendQ sendQ, bool thrownUnkownPackets = false)
         {
             this.Socket = Socket;
-            this.PeerEndPoint = Address;
+            PeerEndPoint = Address;
             this.guid = guid;
-            this.Connected = true;
-            this.rak_version = rak_version;
-            this.Sendq = sendQ;
-            this.Recvq = recvQ;
+            Connected = true;
+            this.thrownUnkownPackets = thrownUnkownPackets;
+
+            rak_version = rakVersion;
+
+            Sendq = sendQ;
+            Recvq = recvQ;
 
             StartPing();
             SenderThread = StartSender();
+        }
+
+        public void Subscribe<T>(Action<T> action) where T : Packet {
+            Type packetType = typeof(T);
+
+            //Ensure the packet has a registered packet id.
+            RegisterPacketID attribute = 
+                packetType.GetCustomAttribute<RegisterPacketID>() ?? throw new Exception(packetType.FullName + " must have the [RegisterPacketID(int)] attribute.");
+
+            bool hasBufferConstructor = false;
+            foreach(ConstructorInfo constructor in packetType.GetConstructors())
+            {
+                ParameterInfo[] parameters = constructor.GetParameters();
+
+                if (parameters.Length != 1) continue;
+                if (parameters[0].ParameterType == typeof(byte[])) continue;
+
+                hasBufferConstructor = true;
+            }
+
+            if (!hasBufferConstructor) throw new Exception(packetType.FullName + " must have a constructor that takes only a byte[].");
+
+            int packetId = attribute.ID;
+
+            bool exists = Listeners.TryGetValue(packetId, out var listeners);
+            if(!exists)
+            {
+                listeners = new List<(Type, Delegate)>();
+                Listeners.Add(packetId, listeners);
+            }
+
+            listeners.Add((packetType, action));
         }
 
         public void HandleFrameSet(IPEndPoint peer_addr, byte[] data)
@@ -56,9 +93,11 @@ namespace SharpRakNet.Network
                     HandleFrame(peer_addr, f);
                 }
             }
-            var reader = new RaknetReader(data);
-            byte headerFlags = reader.ReadU8();
-            switch (PacketIDExtensions.FromU8(headerFlags))
+
+            RaknetReader stream = new RaknetReader(data);
+            byte headerFlags = stream.ReadU8();
+
+            switch ((PacketID)headerFlags)
             {
                 case PacketID.Nack:
                     {
@@ -110,8 +149,8 @@ namespace SharpRakNet.Network
                     }
                 default:
                     {
-                        if (PacketIDExtensions.FromU8(data[0]) >= PacketID.FrameSetPacketBegin 
-                            && PacketIDExtensions.FromU8(data[0]) <= PacketID.FrameSetPacketEnd)
+                        if ((PacketID)data[0] >= PacketID.FrameSetPacketBegin 
+                            && (PacketID)data[0] <= PacketID.FrameSetPacketEnd)
                         {
                             var frames = new FrameVec(data);
                             lock (Recvq)
@@ -143,43 +182,56 @@ namespace SharpRakNet.Network
             }
         }
 
-
-        public void HandleFrame(IPEndPoint peer_addr, FrameSetPacket frame)
+        public void HandleFrame(IPEndPoint address, FrameSetPacket frame)
         {
-            PacketID packetID = PacketIDExtensions.FromU8(frame.data[0]);
+            PacketID packetID = (PacketID)frame.data[0];
 
             switch (packetID)
             {
                 case PacketID.ConnectedPing:
-                    //Console.WriteLine("ConnectedPing");
-                    HandleConnectPing(frame.data.ToArray());
+                    HandleConnectPing(frame.data);
                     break;
                 case PacketID.ConnectedPong:
-                    //Console.WriteLine("ConnectedPong");
                     repingCount = 0;
                     break;
                 case PacketID.ConnectionRequest:
-                    //Console.WriteLine("ConnectionRequest");
-                    HandleConnectionRequest(peer_addr, frame.data.ToArray());
+                    HandleConnectionRequest(address, frame.data);
                     break;
                 case PacketID.ConnectionRequestAccepted:
-                    //Console.WriteLine("ConnectionRequestAccepted");
-                    HandleConnectionRequestAccepted(frame.data.ToArray());
+                    HandleConnectionRequestAccepted(frame.data);
                     break;
                 case PacketID.NewIncomingConnection:
-                    //Console.WriteLine("NewIncomingConnection");
                     break;
                 case PacketID.Disconnect:
-                    //Console.WriteLine("Disconnect");
                     HandleDisconnectionNotification();
                     break;
                 default:
-                    //Console.WriteLine("default");
-                    SessionReceive(frame.data.ToArray());
+                    SessionReceiveRaw(frame.data);
+                    HandleIncomingPacket(frame.data);
                     break;
             }
         }
 
+        private void HandleIncomingPacket(byte[] buffer) {
+            byte packetID = buffer[0];
+
+            bool exists = Listeners.TryGetValue(packetID, out List<(Type, Delegate)> value);
+            if (!exists) return;
+
+            foreach((Type, Delegate) registration in value)
+            {
+                Delegate callback = registration.Item2;
+                Type packetType = registration.Item1;
+
+                MethodInfo method = packetType.GetMethod("Deserialize");
+                if (method == null) return;
+
+                object packet = Activator.CreateInstance(packetType, new object[] { buffer });
+                method.Invoke(packet, new object[] {});
+
+                callback.DynamicInvoke(packet);
+            }
+        }
 
         private void HandleConnectPing(byte[] data)
         {
@@ -189,6 +241,7 @@ namespace SharpRakNet.Network
                 client_timestamp = pingPacket.client_timestamp,
                 server_timestamp = Common.CurTimestampMillis(),
             };
+
             byte[] buf = Packet.WritePacketConnectedPong(pongPacket);
             lock (Sendq)
                 Sendq.Insert(Reliability.Unreliable, buf);
@@ -266,26 +319,25 @@ namespace SharpRakNet.Network
         public void StartPing()
         {
             PingTimer = new Timer(SendPing, null,
-                        new Random().Next(1000, 1500), new Random().Next(1000, 1500));
+                new Random().Next(1000, 1500), new Random().Next(1000, 1500));
         }
 
         public void SendPing(object obj)
         {
-            if (Connected)
+            if (!Connected) return;
+            ConnectedPing pingPacket = new ConnectedPing
             {
-                ConnectedPing pingPacket = new ConnectedPing
-                {
-                    client_timestamp = Common.CurTimestampMillis(),
-                };
-                byte[] buf = Packet.WritePacketConnectedPing(pingPacket);
-                lock (Sendq)
-                    Sendq.Insert(Reliability.Unreliable, buf);
-                repingCount++;
-                if (repingCount > MaxRepingCount)
-                {
-                    HandleDisconnectionNotification();
-                }
-            }
+                client_timestamp = Common.CurTimestampMillis(),
+            };
+
+            byte[] buffer = Packet.WritePacketConnectedPing(pingPacket);
+            lock (Sendq)
+                Sendq.Insert(Reliability.Unreliable, buffer);
+
+            repingCount++;
+            if (repingCount < MaxRepingCount) return;
+
+            HandleDisconnectionNotification();
         }
     }
 }

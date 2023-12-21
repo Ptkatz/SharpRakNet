@@ -33,6 +33,9 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -42,23 +45,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Network\AsyncUdpClient.cs" />
-    <Compile Include="Network\RaknetListener.cs" />
-    <Compile Include="Network\RaknetClient.cs" />
-    <Compile Include="Network\RaknetSession.cs" />
-    <Compile Include="Protocol\Ack.cs" />
-    <Compile Include="Protocol\SendQ.cs" />
-    <Compile Include="Protocol\Fragment.cs" />
-    <Compile Include="Protocol\FrameSetPacket.cs" />
-    <Compile Include="Protocol\FrameVec.cs" />
-    <Compile Include="Protocol\Packet.cs" />
+    <Compile Include="Attributes\RegisterPacketID.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Protocol\RaknetError.cs" />
-    <Compile Include="Protocol\RaknetReader.cs" />
-    <Compile Include="Protocol\RaknetWriter.cs" />
-    <Compile Include="Protocol\RecvQ.cs" />
-    <Compile Include="Protocol\Reliability.cs" />
-    <Compile Include="Protocol\Common.cs" />
+    <Compile Include="Protocol\Packets\*.cs" />
+    <Compile Include="Protocol\Raknet\*.cs" />
+    <Compile Include="Protocol\*.cs" />
+    <Compile Include="Network\*.cs" />
+    <Compile Include="Stream\*.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

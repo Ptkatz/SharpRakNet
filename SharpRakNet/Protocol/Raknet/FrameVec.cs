@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace SharpRakNet
+namespace SharpRakNet.Protocol.Raknet
 {
     public class FrameVec
     {
@@ -55,7 +53,7 @@ namespace SharpRakNet
                     frame.fragment_index = reader.ReadU32(Endian.Big);
                 }
 
-                frame.data = reader.Read(frame.length_in_bytes).ToList();
+                frame.data = reader.Read(frame.length_in_bytes);
                 frames.Add(frame);
             }
         }

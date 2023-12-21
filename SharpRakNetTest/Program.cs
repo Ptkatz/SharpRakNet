@@ -1,14 +1,13 @@
-﻿using SharpRakNet;
+﻿using SharpRakNet.Protocol.Raknet;
 using SharpRakNet.Network;
-using SharpRakNet.Protocol;
-using System;
+
+using SharpRakNet.Protocol.Packets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
-using System.Text;
+using System;
 
-namespace SharpRakNetTest
+namespace RaknetServerTest
 {
     internal class Program
     {
@@ -17,15 +16,30 @@ namespace SharpRakNetTest
             RaknetListener listener = new RaknetListener(new IPEndPoint(IPAddress.Parse("0.0.0.0"), 19132));
             listener.SessionConnected += OnSessionEstablished;
             listener.BeginListener();
-            while (true) { }
+
+            listener.Subscribe<UnconnectedPing>(OnRecievePing);
+
+            while (true) {}
         }
 
         static void OnSessionEstablished(RaknetSession session)
         {
             Console.WriteLine("OnSessionEstablished");
             session.SessionDisconnected += OnDisconnected;
-            session.SessionReceive += OnReceive;
+            session.SessionReceiveRaw += OnReceive;
             session.Sendq.Insert(Reliability.ReliableOrdered, new byte[] { 1, 2, 3 });
+        }
+
+        static void OnRecievePing(IPEndPoint address, UnconnectedPing packet) {
+            string message = "--- " + address.Address + " ---";
+
+            Console.WriteLine(message);
+
+            Console.WriteLine("Ping Time: " + packet.time);
+            Console.WriteLine("Ping Magic: " + packet.magic);
+            Console.WriteLine("Ping GUID: " + packet.guid);
+
+            Console.WriteLine(string.Concat(Enumerable.Repeat("-", message.Length)));
         }
 
         static void OnDisconnected(RaknetSession session)
@@ -33,9 +47,24 @@ namespace SharpRakNetTest
             Console.WriteLine(session.PeerEndPoint);
         }
 
-        static void OnReceive(byte[] buf)
+        static void OnReceive(byte[] buffer)
         {
-            Console.WriteLine($"Length {buf.Length}");
+            Console.WriteLine($"Length {buffer.Length}");
+            PrintBytes(buffer);
+
+            //if (buffer[0] == 1)
+            //{
+            //    UnconnectedPing packet = new Packet(buffer).Cast<UnconnectedPing>();
+            //    packet.Deserialize();
+            //
+            //    Console.WriteLine(packet.time);
+            //}
+        }
+
+        static void OnReceivePacket(RaknetSession session, Packet packet)
+        {
+            packet.Deserialize();
+            Console.WriteLine($"{packet.Buffer[0]}");
             //PrintBytes(buf);
         }
 
@@ -285,11 +314,11 @@ namespace SharpRakNetTest
 
         static bool TestSerializeDeserialize()
         {
-            var p = new byte[]
-            {
-        132, 0, 0, 0, 64, 0, 144, 0, 0, 0, 9, 146, 33, 7, 47, 57, 18, 128, 111, 0, 0, 0, 0, 20,
-        200, 47, 41, 0,
+            byte[] p = new byte[] {
+                132, 0, 0, 0, 64, 0, 144, 0, 0, 0, 9, 146, 33, 7, 47, 57, 18, 128, 111, 0, 0, 0, 0, 20,
+                200, 47, 41, 0,
             };
+
             var a = FrameSetPacket.Deserialize(p);
             var s = a.Serialize();
             if (s.SequenceEqual(p))

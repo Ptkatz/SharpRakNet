@@ -5,9 +5,9 @@ VisualStudioVersion = 17.6.33829.357
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpRakNet", "SharpRakNet\SharpRakNet.csproj", "{EADDBC27-8A43-49E0-8925-BE940D78D322}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpRakNetTest", "SharpRakNetTest\SharpRakNetTest.csproj", "{56C3C5A9-1584-47C4-8A64-3197810C3408}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaknetServerTest", "SharpRakNetTest\RaknetServerTest.csproj", "{56C3C5A9-1584-47C4-8A64-3197810C3408}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpRakNetTest2", "SharpRakNetTest2\SharpRakNetTest2.csproj", "{05EFEC66-30CD-450C-B5D6-7C639342BA38}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaknetClientTest", "SharpRakNetTest2\RaknetClientTest.csproj", "{05EFEC66-30CD-450C-B5D6-7C639342BA38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Net;
 using SharpRakNet.Protocol;
 using System.Threading;
+using SharpRakNet.Protocol.Raknet;
 
 namespace SharpRakNet.Network
 {
@@ -19,39 +20,31 @@ namespace SharpRakNet.Network
         public RaknetClient()
         {
             Socket = new AsyncUdpClient();
-            Socket.PacketReceived += this.OnPacketReceived;
+            Socket.PacketReceived += OnPacketReceived;
             guid = (ulong)new Random().NextDouble() * ulong.MaxValue;
         }
 
         private void OnPacketReceived(IPEndPoint peer_addr, byte[] data)
         {
-            switch (PacketIDExtensions.FromU8(data[0]))
-            {
+            switch ((PacketID)data[0]) {
                 case PacketID.OpenConnectionReply1:
-                    {
-                        HandleOpenConnectionReply1(peer_addr, data);
-                        break;
-                    }
+                    HandleOpenConnectionReply1(peer_addr, data);
+                    break;
                 case PacketID.OpenConnectionReply2:
-                    {
-                        HandleOpenConnectionReply2(peer_addr, data);
-                        break;
-                    }
+                    HandleOpenConnectionReply2(peer_addr, data);
+                    break;
                 case PacketID.IncompatibleProtocolVersion:
+                    throw new RaknetError("NotSupportVersion");
+                default: {
+                    if (Session == null) break;
+
+                    lock (Session)
                     {
-                        throw new RaknetError("NotSupportVersion");
+                        Session.HandleFrameSet(peer_addr, data);
                     }
-                default:
-                    {
-                        if (Session != null)
-                        {
-                            lock (Session)
-                            {
-                                Session.HandleFrameSet(peer_addr, data);
-                            }
-                        }
-                        break;
-                    }
+
+                    break;
+                }
             }
         }
 
@@ -83,6 +76,13 @@ namespace SharpRakNet.Network
             Socket.Send(peer_addr, packet);
         }
 
+        public void Subscribe<T>(Action<T> action) where T : Packet
+        {
+            if(Session == null) throw new Exception("Session not yet connected, cannot subscribe before a session is established...");
+
+            Session.Subscribe(action);
+        }
+
         public void BeginConnection(IPEndPoint address)
         {
             OpenConnectionRequest1 request1Packet = new OpenConnectionRequest1
@@ -94,6 +94,11 @@ namespace SharpRakNet.Network
             byte[] request1Buf = Packet.WritePacketConnectionOpenRequest1(request1Packet);
             Send(address, request1Buf);
             Socket.Run();
+        }
+
+        public void EndConnection()
+        {
+            Socket.Stop();
         }
     }
 }
